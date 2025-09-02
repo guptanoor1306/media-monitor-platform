@@ -160,7 +160,7 @@ class SourceResponse(BaseModel):
     
     class Config:
         # Pydantic v1 syntax
-        orm_mode = True
+        from_attributes = True
         # Allow extra fields from the database
         extra = "ignore"
 
@@ -182,7 +182,7 @@ class ContentResponse(BaseModel):
     
     class Config:
         # Pydantic v1 syntax
-        orm_mode = True
+        from_attributes = True
         # Allow extra fields from the database
         extra = "ignore"
 
@@ -202,7 +202,7 @@ class SummaryResponse(BaseModel):
     created_at: Optional[datetime] = None
     
     class Config:
-        orm_mode = True
+        from_attributes = True
         extra = "ignore"
 
 
