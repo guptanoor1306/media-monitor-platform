@@ -14,7 +14,7 @@ from src.models import (
     SourceCreate, SourceResponse, ContentResponse, SummaryRequest, 
     SummaryResponse, AlertCreate, ScheduledTaskCreate
 )
-from src.services.content_aggregator import ContentAggregator
+from src.services.content_aggregator_minimal import ContentAggregator
 from src.services.summarizer import SummarizerService
 from src.config import settings
 
