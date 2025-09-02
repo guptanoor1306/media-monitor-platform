@@ -498,3 +498,15 @@ async def migrate_real_data_endpoint():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+
+
+@app.get("/fixed-migrate")
+async def fixed_migrate_endpoint():
+    """Fixed migration with proper datetime handling"""
+    try:
+        from scripts.fixed_migration import fixed_migrate
+        result = fixed_migrate()
+        return {"status": "success", "data": result}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
