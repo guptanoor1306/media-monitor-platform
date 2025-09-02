@@ -86,31 +86,23 @@ async def trigger_daily_scrape():
         from src.daily_scraper import run_daily_scrape_sync
         print("🚀 Manual daily scrape triggered via API")
         
-        # Run scraping in background to avoid timeout
-        import threading
-        
-        def run_scrape():
-            try:
-                stats = run_daily_scrape_sync()
-                print(f"✅ Background scrape completed: {stats}")
-            except Exception as e:
-                print(f"❌ Background scrape failed: {e}")
-        
-        # Start scraping in background thread
-        thread = threading.Thread(target=run_scrape)
-        thread.daemon = True
-        thread.start()
+        # Run scraping synchronously to get results
+        stats = run_daily_scrape_sync()
+        print(f"✅ Daily scrape completed: {stats}")
         
         return {
-            "status": "started",
-            "message": "Daily scraping started in background",
+            "status": "completed",
+            "message": "Daily scraping completed successfully",
+            "stats": stats,
             "timestamp": datetime.now().isoformat()
         }
         
     except Exception as e:
+        print(f"❌ Daily scrape failed: {e}")
         return {
             "status": "error", 
             "error": str(e),
+            "error_type": type(e).__name__,
             "timestamp": datetime.now().isoformat()
         }
 

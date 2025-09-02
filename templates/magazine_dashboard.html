@@ -526,7 +526,13 @@
                                         (item.engagement_metrics?.is_podcast ? '🎧 Listen to Episode' : '📖 Read Full Article')
                                     }
                                 </a>
-                            ` : ''}
+                            ` : `
+                                ${item.engagement_metrics?.is_podcast ? `
+                                    <span class="text-gray-500 text-sm font-medium flex items-center gap-1">
+                                        🎧 Podcast (No direct link available)
+                                    </span>
+                                ` : ''}
+                            `}
                         </div>
                     </div>
                 </div>

@@ -359,8 +359,8 @@ class PremiumMediaScraper:
             added_count = 0
             relevant_count = 0
             
-            # Process recent entries (last 24 hours for real-time)
-            cutoff_date = datetime.now(timezone.utc) - timedelta(hours=24)
+            # Process recent entries (last 7 days for daily scraping)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=7)
             
             for entry in feed.entries[:20]:  # Process more entries for premium sources
                 try:
@@ -398,7 +398,7 @@ class PremiumMediaScraper:
                     if not published_at:
                         published_at = datetime.now(timezone.utc)
                     
-                    # Skip old content for real-time updates
+                    # Skip old content for daily updates
                     if published_at < cutoff_date:
                         continue
                     
