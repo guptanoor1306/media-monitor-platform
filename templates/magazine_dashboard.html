@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media & Creator Economy Magazine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .magazine-card {
+            transition: all 0.3s ease;
+            border: 1px solid #e5e7eb;
+        }
+        .magazine-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+        .bucket-tab {
+            transition: all 0.2s ease;
+        }
+        .bucket-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center space-x-4">
+                    <h1 class="text-2xl font-bold text-gray-900">📰 Media & Creator Economy Magazine</h1>
+                    <span class="px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full font-medium" id="contentCount">Loading...</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="summarizeBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        ✨ AI Summarize
+                    </button>
+                    <button 
+                        id="dailyScrapeBtn" 
+                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                        title="Fetch latest content from all sources without losing existing data"
+                    >
+                        📡 Daily Refresh
+                    </button>
+                    <button 
+                        id="quickRefreshBtn" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                        title="Quick reload of current content"
+                    >
+                        🔄 Reload
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Search Bar -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="relative">
+            <input 
+                type="text" 
+                id="searchInput" 
+                placeholder="🔍 Search media business models, creator economy, or startup trends..."
+                class="w-full px-6 py-4 text-lg border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            >
+            <button id="searchBtn" class="absolute right-3 top-1/2 transform -translate-y-1/2 bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg">
+                Search
+            </button>
+        </div>
+    </div>
+
+    <!-- 4 Bucket Navigation -->
+    <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex space-x-4 overflow-x-auto pb-4">
+            <button class="bucket-tab active px-6 py-3 rounded-xl font-medium whitespace-nowrap flex items-center space-x-2" data-bucket="all">
+                <span>📰</span>
+                <span>All Stories</span>
+                <span class="bucket-count bg-white bg-opacity-20 px-2 py-1 rounded-full text-sm" id="count-all">400</span>
+            </button>
+            <button class="bucket-tab px-6 py-3 rounded-xl font-medium whitespace-nowrap flex items-center space-x-2 bg-gray-100 text-gray-700 hover:bg-gray-200" data-bucket="media">
+                <span>📺</span>
+                <span>Media Industry</span>
+                <span class="bucket-count bg-gray-600 text-white px-2 py-1 rounded-full text-sm" id="count-media">95</span>
+            </button>
+            <button class="bucket-tab px-6 py-3 rounded-xl font-medium whitespace-nowrap flex items-center space-x-2 bg-gray-100 text-gray-700 hover:bg-gray-200" data-bucket="creator">
+                <span>🎭</span>
+                <span>Creator Economy</span>
+                <span class="bucket-count bg-gray-600 text-white px-2 py-1 rounded-full text-sm" id="count-creator">135</span>
+            </button>
+            <button class="bucket-tab px-6 py-3 rounded-xl font-medium whitespace-nowrap flex items-center space-x-2 bg-gray-100 text-gray-700 hover:bg-gray-200" data-bucket="business_models">
+                <span>💼</span>
+                <span>Business Models</span>
+                <span class="bucket-count bg-gray-600 text-white px-2 py-1 rounded-full text-sm" id="count-business_models">90</span>
+            </button>
+            <button class="bucket-tab px-6 py-3 rounded-xl font-medium whitespace-nowrap flex items-center space-x-2 bg-gray-100 text-gray-700 hover:bg-gray-200" data-bucket="podcasts">
+                <span>🎧</span>
+                <span>Podcasts</span>
+                <span class="bucket-count bg-gray-600 text-white px-2 py-1 rounded-full text-sm" id="count-podcasts">80</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Source Filter Pills -->
+    <div id="sourceFiltersContainer" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 hidden">
+        <div class="bg-white rounded-lg border border-gray-200 p-4">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-medium text-gray-700">Filter by Sources:</h3>
+                <div class="flex items-center space-x-3">
+                    <span id="selectedSourceCount" class="text-xs text-gray-500">0 selected</span>
+                    <button id="clearSourceFilters" class="text-xs text-purple-600 hover:text-purple-800 font-medium">Clear All</button>
+                </div>
+            </div>
+            <div id="sourceFilterPills" class="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                <!-- Source pills will be populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Magazine Grid -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Loading State -->
+        <div id="loadingState" class="text-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+            <p class="mt-4 text-gray-600">Loading magazine stories...</p>
+        </div>
+
+        <!-- Magazine Content Grid -->
+        <div id="magazineGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden">
+        </div>
+
+        <!-- Load More Button -->
+        <div class="text-center mt-12">
+            <button id="loadMoreBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-8 py-3 rounded-lg font-medium hidden">
+                Load More Stories
+            </button>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="text-center py-16 hidden">
+            <div class="text-6xl mb-4">📰</div>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">No stories found</h3>
+            <p class="text-gray-600 mb-6">Try a different bucket or search term</p>
+            <button onclick="showAllStories()" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg">
+                Show All Stories
+            </button>
+        </div>
+    </main>
+
+    <!-- AI Summarize Modal -->
+    <div id="summarizeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+                <div class="flex justify-between items-center p-6 border-b">
+                    <h3 class="text-lg font-semibold">AI Content Analysis</h3>
+                    <button id="closeSummarizeModalBtn" class="text-gray-400 hover:text-gray-600">
+                        <span class="text-2xl">&times;</span>
+                    </button>
+                </div>
+                <div class="p-6">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Analysis Type</label>
+                        <select id="analysisType" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            <option value="custom">Custom Prompt</option>
+                            <option value="business-models">Media Business Models</option>
+                            <option value="creator-economy">Creator Economy Trends</option>
+                            <option value="vc-trends">VC Investment Trends</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Custom Prompt</label>
+                        <textarea id="customPrompt" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" rows="4" placeholder="Ask anything about the selected stories... e.g., 'What are the key trends in creator monetization?' or 'Summarize the main challenges facing media companies?'"></textarea>
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Selected Stories</label>
+                        <div id="selectedContentList" class="border border-gray-300 rounded-lg p-3 bg-gray-50 min-h-[100px] max-h-40 overflow-y-auto">
+                            <p class="text-gray-500 text-center">No stories selected. Check the boxes on story cards to select them.</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" id="cancelSummarizeBtn" class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors">Cancel</button>
+                        <button id="generateSummaryBtn" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium">
+                            ✨ Generate Analysis
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Results Modal -->
+    <div id="summaryResultsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center p-6 border-b sticky top-0 bg-white">
+                    <h3 class="text-lg font-semibold">AI Analysis Results</h3>
+                    <button id="closeSummaryResultsBtn" class="text-gray-400 hover:text-gray-600">
+                        <span class="text-2xl">&times;</span>
+                    </button>
+                </div>
+                <div class="p-6">
+                    <div id="summaryContent">
+                        <!-- Content will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let allContent = [];
+        let allSources = [];
+        let filteredContent = [];
+        let selectedItems = [];
+        let selectedSources = [];
+        let currentBucket = 'all';
+        let currentPage = 0;
+        const itemsPerPage = 20;
+
+        // Initialize magazine
+        document.addEventListener('DOMContentLoaded', function() {
+            loadMagazineContent();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Bucket navigation
+            document.querySelectorAll('.bucket-tab').forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    const bucket = e.currentTarget.dataset.bucket;
+                    switchBucket(bucket);
+                });
+            });
+
+            // Search
+            document.getElementById('searchInput').addEventListener('input', debounce(handleSearch, 300));
+            document.getElementById('searchBtn').addEventListener('click', handleSearch);
+            
+            // Actions
+            document.getElementById('dailyScrapeBtn').addEventListener('click', performDailyScrape);
+            document.getElementById('quickRefreshBtn').addEventListener('click', quickRefresh);
+            document.getElementById('loadMoreBtn').addEventListener('click', loadMoreContent);
+            document.getElementById('summarizeBtn').addEventListener('click', summarizeSelected);
+            
+            // Modal controls
+            document.getElementById('closeSummarizeModalBtn').addEventListener('click', () => hideModal('summarizeModal'));
+            document.getElementById('cancelSummarizeBtn').addEventListener('click', () => hideModal('summarizeModal'));
+            document.getElementById('closeSummaryResultsBtn').addEventListener('click', () => hideModal('summaryResultsModal'));
+            document.getElementById('generateSummaryBtn').addEventListener('click', handleGenerateSummary);
+            
+            // Source filter controls
+            document.getElementById('clearSourceFilters').addEventListener('click', clearSourceFilters);
+        }
+
+        async function loadMagazineContent() {
+            try {
+                showLoading();
+                
+                // Load content and sources in parallel
+                const [contentResponse, sourcesResponse] = await Promise.all([
+                    fetch('/api/content?limit=500'),
+                    fetch('/api/sources')
+                ]);
+                
+                allContent = await contentResponse.json();
+                allSources = await sourcesResponse.json();
+                
+                console.log(`📰 Loaded ${allContent.length} magazine stories from ${allSources.length} sources`);
+                
+                // Update counts
+                updateBucketCounts();
+                
+                // Show all content initially
+                filterByBucket('all');
+                
+            } catch (error) {
+                console.error('Error loading magazine:', error);
+                showEmpty();
+            }
+        }
+
+        function updateBucketCounts() {
+            // Get sources to map content to buckets
+            fetch('/api/sources').then(response => response.json()).then(sources => {
+                const sourceMap = {};
+                sources.forEach(source => {
+                    sourceMap[source.id] = source.source_type;
+                });
+
+                // Count content by bucket
+                const counts = {
+                    all: allContent.length,
+                    media: 0,
+                    creator: 0,
+                    business_models: 0,
+                    podcasts: 0
+                };
+
+                allContent.forEach(item => {
+                    const bucket = sourceMap[item.source_id];
+                    if (counts[bucket] !== undefined) {
+                        counts[bucket]++;
+                    }
+                });
+
+                // Update UI counts
+                Object.entries(counts).forEach(([bucket, count]) => {
+                    const countEl = document.getElementById(`count-${bucket}`);
+                    if (countEl) countEl.textContent = count;
+                });
+
+                document.getElementById('contentCount').textContent = `${allContent.length} stories`;
+            });
+        }
+
+        function switchBucket(bucket) {
+            currentBucket = bucket;
+            currentPage = 0;
+            
+            // Clear source filters when switching buckets
+            selectedSources = [];
+            
+            // Update active tab
+            document.querySelectorAll('.bucket-tab').forEach(tab => {
+                tab.classList.remove('active');
+                tab.classList.add('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+            });
+            
+            const activeTab = document.querySelector(`[data-bucket="${bucket}"]`);
+            activeTab.classList.add('active');
+            activeTab.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+            
+            // Load source filters for the bucket
+            loadSourceFilters(bucket);
+            
+            filterByBucket(bucket);
+        }
+
+        async function filterByBucket(bucket) {
+            try {
+                showLoading();
+                
+                let content = allContent;
+                
+                // First filter by bucket
+                if (bucket !== 'all') {
+                    const bucketSourceIds = allSources
+                        .filter(source => source.source_type === bucket)
+                        .map(source => source.id);
+                    
+                    content = content.filter(item => 
+                        bucketSourceIds.includes(item.source_id)
+                    );
+                }
+                
+                // Then apply source filters if any are selected
+                if (selectedSources.length > 0) {
+                    content = content.filter(item => 
+                        selectedSources.includes(item.source_id)
+                    );
+                }
+                
+                filteredContent = content;
+                
+                console.log(`📋 Filtered to ${filteredContent.length} stories for bucket: ${bucket} with ${selectedSources.length} source filters`);
+                
+                renderMagazineGrid();
+                
+            } catch (error) {
+                console.error('Error filtering by bucket:', error);
+                showEmpty();
+            }
+        }
+
+        function renderMagazineGrid() {
+            const grid = document.getElementById('magazineGrid');
+            const loadMoreBtn = document.getElementById('loadMoreBtn');
+            
+            if (filteredContent.length === 0) {
+                showEmpty();
+                return;
+            }
+            
+            // Show content for current page
+            const startIndex = 0;
+            const endIndex = (currentPage + 1) * itemsPerPage;
+            const contentToShow = filteredContent.slice(startIndex, endIndex);
+            
+            grid.innerHTML = contentToShow.map(item => createMagazineCard(item)).join('');
+            
+            // Show/hide load more button
+            if (endIndex < filteredContent.length) {
+                loadMoreBtn.classList.remove('hidden');
+            } else {
+                loadMoreBtn.classList.add('hidden');
+            }
+            
+            hideLoading();
+            
+            // Setup checkboxes
+            setupCardCheckboxes();
+        }
+
+        function isRestrictedContent(item) {
+            const url = item.content_url || '';
+            const description = item.description || '';
+            const title = item.title || '';
+            
+            // Check for paywall/premium indicators
+            return (
+                url.includes('theinformation.com') ||
+                url.includes('/premium/') ||
+                url.includes('/subscriber/') ||
+                description.toLowerCase().includes('subscription') ||
+                description.toLowerCase().includes('premium') ||
+                description.toLowerCase().includes('sign up') ||
+                description.toLowerCase().includes('subscribe') ||
+                description.toLowerCase().includes('login required') ||
+                description.toLowerCase().includes('paywall') ||
+                title.toLowerCase().includes('[premium]') ||
+                title.toLowerCase().includes('[subscriber]') ||
+                (description.length < 50 && description.toLowerCase().includes('subscribe')) ||
+                // Common paywall domains
+                url.includes('ft.com/content/') ||
+                url.includes('wsj.com/articles/') ||
+                url.includes('bloomberg.com/news/') ||
+                url.includes('economist.com/') ||
+                // Check for truncated descriptions ending with subscription prompts
+                description.toLowerCase().includes('read more with subscription') ||
+                description.toLowerCase().includes('full access requires')
+            );
+        }
+
+        function createMagazineCard(item) {
+            const publishDate = item.published_at ? 
+                new Date(item.published_at).toLocaleDateString() : 'Recently';
+            
+            const description = item.description || 'Click to read the full story...';
+            const truncatedDesc = description.length > 150 ? 
+                description.substring(0, 150) + '...' : description;
+            
+            // Check if content is restricted
+            const isRestricted = isRestrictedContent(item);
+            
+            // Get source information
+            const source = allSources.find(s => s.id === item.source_id);
+            const sourceName = source ? source.name : (item.source_name || 'Magazine');
+            
+            // Get bucket icon
+            const bucketIcons = {
+                media: '📺',
+                creator: '🎭', 
+                business_models: '💼',
+                podcasts: '🎧'
+            };
+            
+            // Styling for restricted content
+            const cardClass = isRestricted ? 'magazine-card bg-orange-50 rounded-xl overflow-hidden border-2 border-orange-200' : 'magazine-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100';
+            const checkboxDisabled = isRestricted ? 'disabled opacity-50 cursor-not-allowed' : '';
+            const titleClass = isRestricted ? 'font-bold text-lg mb-3 text-gray-700 leading-tight line-clamp-2' : 'font-bold text-lg mb-3 text-gray-900 leading-tight line-clamp-2';
+            
+            return `
+                <div class="${cardClass}">
+                    <!-- Content -->
+                    <div class="p-6">
+                        <!-- Header -->
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-2">
+                                <span class="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full font-medium">
+                                    ${bucketIcons[source?.source_type] || '📰'} ${sourceName}
+                                </span>
+                                ${isRestricted ? `
+                                    <span class="inline-flex items-center px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full font-medium">
+                                        🔒 Restricted Access
+                                    </span>
+                                ` : ''}
+                            </div>
+                            <input 
+                                type="checkbox" 
+                                class="content-checkbox ${checkboxDisabled} w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500" 
+                                data-content-id="${item.id}" 
+                                ${isRestricted ? 'disabled title="Cannot analyze restricted content - subscription required"' : ''}
+                            >
+                        </div>
+                        
+                        <!-- Title -->
+                        <h3 class="${titleClass}">
+                            ${item.title || 'Untitled Story'}
+                            ${isRestricted ? '<span class="text-orange-600 text-sm font-normal">(Preview Only)</span>' : ''}
+                        </h3>
+                        
+                        <!-- Description -->
+                        <p class="text-gray-600 text-sm mb-4 leading-relaxed ${isRestricted ? 'text-gray-500' : ''}">
+                            ${truncatedDesc}
+                            ${isRestricted ? '<br><span class="text-orange-600 font-medium">🔒 Full article requires subscription to view.</span>' : ''}
+                        </p>
+                        
+                        <!-- Footer -->
+                        <div class="flex items-center justify-between">
+                            <div class="text-xs text-gray-500">
+                                <span>${sourceName}</span>
+                                <span class="mx-1">•</span>
+                                <span>${publishDate}</span>
+                            </div>
+                            ${item.content_url ? `
+                                <a href="${item.content_url}" target="_blank" class="${isRestricted ? 'text-orange-600 hover:text-orange-800' : 'text-purple-600 hover:text-purple-800'} text-sm font-medium flex items-center gap-1">
+                                    ${isRestricted ? '🔗 Visit Source (Login Required)' : '📖 Read Full Article'}
+                                </a>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function setupCardCheckboxes() {
+            document.querySelectorAll('.content-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', updateSelectedItems);
+            });
+        }
+
+        function updateSelectedItems() {
+            // Only count enabled (non-restricted) checkboxes
+            const checkboxes = document.querySelectorAll('.content-checkbox:checked:not(:disabled)');
+            selectedItems = Array.from(checkboxes).map(cb => parseInt(cb.dataset.contentId));
+            
+            const summarizeBtn = document.getElementById('summarizeBtn');
+            summarizeBtn.disabled = selectedItems.length === 0;
+            summarizeBtn.textContent = selectedItems.length > 0 ? 
+                `✨ AI Summarize (${selectedItems.length})` : 
+                '✨ AI Summarize';
+            
+            // Show help text if user has restricted content selected
+            const disabledChecked = document.querySelectorAll('.content-checkbox:checked:disabled');
+            if (disabledChecked.length > 0) {
+                console.log(`Note: ${disabledChecked.length} restricted articles cannot be included in AI analysis`);
+            }
+        }
+
+        function loadMoreContent() {
+            currentPage++;
+            renderMagazineGrid();
+        }
+
+        function handleSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            
+            if (!query) {
+                filterByBucket(currentBucket);
+                return;
+            }
+            
+            // Simple search in title and description
+            filteredContent = allContent.filter(item => {
+                const searchText = (item.title + ' ' + item.description + ' ' + (item.author || '')).toLowerCase();
+                return searchText.includes(query.toLowerCase());
+            });
+            
+            currentPage = 0;
+            renderMagazineGrid();
+        }
+
+        function showAllStories() {
+            document.getElementById('searchInput').value = '';
+            switchBucket('all');
+        }
+
+        async function performDailyScrape() {
+            const btn = document.getElementById('dailyScrapeBtn');
+            const originalText = btn.innerHTML;
+            
+            try {
+                btn.innerHTML = '<span>⏳ Fetching latest content...</span>';
+                btn.disabled = true;
+                
+                // Show progress notification
+                showScrapingProgress();
+                
+                // Trigger content update (this adds new content without deleting existing)
+                const response = await fetch('/api/content/update', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Daily scrape completed:', result);
+                    
+                    // Show success notification with count of new items
+                    btn.innerHTML = '<span>✅ Content updated!</span>';
+                    
+                    // Reload the magazine content
+                    await loadMagazineContent();
+                    
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }, 2000);
+                } else {
+                    throw new Error(`Update failed: ${response.status}`);
+                }
+                
+            } catch (error) {
+                console.error('Daily scrape failed:', error);
+                btn.innerHTML = '<span>❌ Update failed</span>';
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }, 3000);
+            }
+        }
+
+        function quickRefresh() {
+            const btn = document.getElementById('quickRefreshBtn');
+            const originalText = btn.innerHTML;
+            
+            btn.innerHTML = '<span>🔄 Reloading...</span>';
+            btn.disabled = true;
+            
+            // Just reload current content from database
+            loadMagazineContent().finally(() => {
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }, 1000);
+            });
+        }
+
+        function showScrapingProgress() {
+            // Simple progress indicator
+            console.log('🚀 Starting daily content scrape...');
+            console.log('📡 Fetching from all active sources...');
+            console.log('💾 New content will be added to existing database...');
+        }
+
+        function summarizeSelected() {
+            if (selectedItems.length === 0) {
+                alert('Please select at least one story to analyze.');
+                return;
+            }
+            
+            // Update selected content list in modal
+            updateSelectedContentList();
+            
+            // Show the modal
+            showModal('summarizeModal');
+        }
+
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function updateSelectedContentList() {
+            const selectedContentList = document.getElementById('selectedContentList');
+            if (!selectedContentList) return;
+            
+            if (selectedItems.length === 0) {
+                selectedContentList.innerHTML = '<p class="text-gray-500 text-center">No stories selected. Check the boxes on story cards to select them.</p>';
+                return;
+            }
+            
+            const selectedStories = selectedItems.map(id => {
+                const story = allContent.find(item => item.id === id);
+                return story ? `
+                    <div class="border-b border-gray-200 pb-2 mb-2 last:border-b-0">
+                        <div class="font-medium text-sm text-gray-900">${story.title || 'Untitled'}</div>
+                        <div class="text-xs text-gray-600 mt-1">${(story.description || '').substring(0, 100)}${story.description && story.description.length > 100 ? '...' : ''}</div>
+                    </div>
+                ` : '';
+            }).filter(Boolean).join('');
+            
+            selectedContentList.innerHTML = selectedStories || '<p class="text-gray-500 text-center">Selected stories not found.</p>';
+        }
+
+        async function handleGenerateSummary() {
+            if (selectedItems.length === 0) {
+                alert('Please select at least one story to analyze.');
+                return;
+            }
+
+            const analysisType = document.getElementById('analysisType').value;
+            let prompt = '';
+
+            if (analysisType === 'custom') {
+                prompt = document.getElementById('customPrompt').value;
+                if (!prompt.trim()) {
+                    alert('Please enter a custom prompt for analysis.');
+                    return;
+                }
+            }
+
+            // Show loading state
+            const generateBtn = document.getElementById('generateSummaryBtn');
+            const originalText = generateBtn.innerHTML;
+            generateBtn.innerHTML = '⏳ Analyzing...';
+            generateBtn.disabled = true;
+
+            try {
+                let endpoint = '/api/summarize';
+                let requestBody = {
+                    content_ids: selectedItems,
+                };
+
+                if (analysisType === 'custom' && prompt) {
+                    requestBody.prompt = prompt;
+                } else {
+                    // Use predefined prompts for other analysis types
+                    const predefinedPrompts = {
+                        'business-models': 'Analyze the business models and monetization strategies mentioned in these media/creator economy stories.',
+                        'creator-economy': 'Summarize the key trends and developments in the creator economy from these stories.',
+                        'vc-trends': 'Extract insights about VC investment trends and startup funding patterns from these stories.'
+                    };
+                    requestBody.prompt = predefinedPrompts[analysisType] || 'Summarize the key insights from these stories.';
+                }
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (response.ok) {
+                    const summary = await response.json();
+                    showSummaryResults(summary);
+                    hideModal('summarizeModal');
+                } else {
+                    const error = await response.text();
+                    throw new Error(`Failed to generate summary: ${error}`);
+                }
+            } catch (error) {
+                console.error('Error generating summary:', error);
+                alert(`Error generating analysis: ${error.message}`);
+            } finally {
+                // Reset button state
+                generateBtn.innerHTML = originalText;
+                generateBtn.disabled = false;
+            }
+        }
+
+        function showSummaryResults(summary) {
+            const content = document.getElementById('summaryContent');
+            content.innerHTML = `
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold mb-2">Analysis Results</h4>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-600 mb-2"><strong>Model Used:</strong> ${summary.model_used || 'GPT-4'}</p>
+                        <p class="text-sm text-gray-600 mb-2"><strong>Stories Analyzed:</strong> ${selectedItems.length}</p>
+                        <p class="text-sm text-gray-600"><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+                    </div>
+                </div>
+                <div class="prose max-w-none">
+                    <h5 class="text-lg font-semibold mb-3">Analysis</h5>
+                    <div class="whitespace-pre-wrap text-gray-700 leading-relaxed">${summary.summary_text || summary.summary || 'No summary available.'}</div>
+                </div>
+            `;
+            
+            showModal('summaryResultsModal');
+        }
+
+        function loadSourceFilters(bucket) {
+            // Get sources for the current bucket
+            let relevantSources = [];
+            
+            if (bucket === 'all') {
+                relevantSources = allSources;
+                document.getElementById('sourceFiltersContainer').classList.add('hidden');
+                return;
+            } else {
+                relevantSources = allSources.filter(source => source.source_type === bucket);
+                document.getElementById('sourceFiltersContainer').classList.remove('hidden');
+            }
+            
+            // Clear existing pills
+            const pillsContainer = document.getElementById('sourceFilterPills');
+            pillsContainer.innerHTML = '';
+            
+            // Create pills for each source
+            relevantSources.forEach(source => {
+                const pill = document.createElement('button');
+                pill.className = 'source-pill px-3 py-1 text-sm rounded-full border transition-all hover:shadow-sm bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200';
+                pill.dataset.sourceId = source.id;
+                pill.innerHTML = `
+                    <span class="source-name">${source.name}</span>
+                    <span class="content-count ml-1 text-xs opacity-75">(${getContentCountForSource(source.id)})</span>
+                `;
+                
+                pill.addEventListener('click', () => toggleSourceFilter(source.id, pill));
+                pillsContainer.appendChild(pill);
+            });
+            
+            updateSourceFilterCount();
+        }
+
+        function getContentCountForSource(sourceId) {
+            return allContent.filter(item => item.source_id === sourceId).length;
+        }
+
+        function toggleSourceFilter(sourceId, pillElement) {
+            const index = selectedSources.indexOf(sourceId);
+            
+            if (index === -1) {
+                // Add source to selection
+                selectedSources.push(sourceId);
+                pillElement.classList.remove('bg-gray-100', 'text-gray-700', 'border-gray-300');
+                pillElement.classList.add('bg-purple-100', 'text-purple-700', 'border-purple-300');
+            } else {
+                // Remove source from selection
+                selectedSources.splice(index, 1);
+                pillElement.classList.remove('bg-purple-100', 'text-purple-700', 'border-purple-300');
+                pillElement.classList.add('bg-gray-100', 'text-gray-700', 'border-gray-300');
+            }
+            
+            updateSourceFilterCount();
+            applySourceFilters();
+        }
+
+        function clearSourceFilters() {
+            selectedSources = [];
+            
+            // Update pill appearances
+            document.querySelectorAll('.source-pill').forEach(pill => {
+                pill.classList.remove('bg-purple-100', 'text-purple-700', 'border-purple-300');
+                pill.classList.add('bg-gray-100', 'text-gray-700', 'border-gray-300');
+            });
+            
+            updateSourceFilterCount();
+            applySourceFilters();
+        }
+
+        function updateSourceFilterCount() {
+            const countElement = document.getElementById('selectedSourceCount');
+            const count = selectedSources.length;
+            countElement.textContent = count === 0 ? '0 selected' : `${count} selected`;
+        }
+
+        function applySourceFilters() {
+            // Re-filter the current bucket with source filters applied
+            filterByBucket(currentBucket);
+        }
+
+        function showLoading() {
+            document.getElementById('loadingState').classList.remove('hidden');
+            document.getElementById('magazineGrid').classList.add('hidden');
+            document.getElementById('emptyState').classList.add('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('magazineGrid').classList.remove('hidden');
+        }
+
+        function showEmpty() {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('magazineGrid').classList.add('hidden');
+            document.getElementById('emptyState').classList.remove('hidden');
+        }
+
+        function debounce(func, delay) {
+            let timeoutId;
+            return (...args) => {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => func.apply(this, args), delay);
+            };
+        }
+    </script>
+</body>
+</html>

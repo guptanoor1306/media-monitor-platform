@@ -1,0 +1,9 @@
+This directory contains placeholder images for the Media Monitor Platform.
+
+In a production environment, you would place actual images here for:
+- Default thumbnails
+- Platform logos
+- UI icons
+- Other visual assets
+
+For now, the platform will use external placeholder images from placeholder.com

@@ -1,0 +1,427 @@
+from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+from fastapi.requests import Request
+from sqlalchemy.orm import Session
+from typing import List, Optional
+from datetime import datetime
+import uvicorn
+
+from src.database import get_db, init_db
+from src.models import (
+    Source, Content, Summary, User, UserSource, Alert, ScheduledTask,
+    SourceCreate, SourceResponse, ContentResponse, SummaryRequest, 
+    SummaryResponse, AlertCreate, ScheduledTaskCreate
+)
+from src.services.content_aggregator import ContentAggregator
+from src.services.summarizer import SummarizerService
+from src.config import settings
+
+# Initialize FastAPI app
+app = FastAPI(
+    title="Media Monitor Platform",
+    description="Comprehensive media monitoring and intelligence platform",
+    version="1.0.0"
+)
+
+# Initialize services
+content_aggregator = ContentAggregator()
+summarizer_service = SummarizerService()
+
+# Mount static files and templates
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+# Initialize database on startup
+@app.on_event("startup")
+async def startup_event():
+    init_db()
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "service": "Media Monitor Platform"}
+
+# API Endpoints
+
+@app.get("/", response_class=HTMLResponse)
+async def root(request: Request):
+    """Magazine dashboard page."""
+    return templates.TemplateResponse("magazine_dashboard.html", {"request": request})
+
+# Sources Management
+@app.post("/api/sources", response_model=SourceResponse)
+async def create_source(source: SourceCreate, db: Session = Depends(get_db)):
+    """Create a new media source."""
+    db_source = Source(**source.dict())
+    db.add(db_source)
+    db.commit()
+    db.refresh(db_source)
+    return db_source
+
+@app.get("/api/sources", response_model=List[SourceResponse])
+async def get_sources(
+    source_type: Optional[str] = Query(None, description="Filter by source type"),
+    db: Session = Depends(get_db)
+):
+    """Get all media sources with optional filtering."""
+    query = db.query(Source).filter(Source.is_active == True)
+    if source_type:
+        query = query.filter(Source.source_type == source_type)
+    return query.all()
+
+@app.get("/api/sources/{source_id}", response_model=SourceResponse)
+async def get_source(source_id: int, db: Session = Depends(get_db)):
+    """Get a specific media source."""
+    source = db.query(Source).filter(Source.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+    return source
+
+@app.put("/api/sources/{source_id}", response_model=SourceResponse)
+async def update_source(
+    source_id: int, 
+    source_update: SourceCreate, 
+    db: Session = Depends(get_db)
+):
+    """Update a media source."""
+    db_source = db.query(Source).filter(Source.id == source_id).first()
+    if not db_source:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    for field, value in source_update.dict().items():
+        setattr(db_source, field, value)
+    
+    db.commit()
+    db.refresh(db_source)
+    return db_source
+
+@app.delete("/api/sources/{source_id}")
+async def delete_source(source_id: int, db: Session = Depends(get_db)):
+    """Delete a media source (soft delete)."""
+    db_source = db.query(Source).filter(Source.id == source_id).first()
+    if not db_source:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    db_source.is_active = False
+    db.commit()
+    return {"message": "Source deleted successfully"}
+
+# Content Management
+@app.get("/api/content", response_model=List[ContentResponse])
+async def get_content(
+    source_id: Optional[int] = Query(None, description="Filter by source ID"),
+    limit: int = Query(50, description="Number of items to return"),
+    offset: int = Query(0, description="Number of items to skip"),
+    db: Session = Depends(get_db)
+):
+    """Get content with optional filtering and pagination."""
+    query = db.query(Content)
+    if source_id:
+        query = query.filter(Content.source_id == source_id)
+    
+    query = query.order_by(Content.published_at.desc())
+    query = query.offset(offset).limit(limit)
+    
+    return query.all()
+
+@app.get("/api/content/creator", response_model=List[ContentResponse])
+async def get_creator_content(
+    limit: int = Query(50, description="Number of items to return"),
+    db: Session = Depends(get_db)
+):
+    """Get creator economy and monetization content prioritized."""
+    try:
+        # Simple approach: get all content and filter in Python
+        all_content = db.query(Content).order_by(Content.published_at.desc()).limit(200).all()
+        
+        creator_content = []
+        other_content = []
+        
+        for item in all_content:
+            tags = item.tags or []
+            title = (item.title or "").lower()
+            desc = (item.description or "").lower()
+            
+            # Check if it has creator tags or mentions
+            is_creator = (
+                "creator_monetization" in tags or
+                "creator_economy" in tags or
+                "creator" in title or
+                "monetization" in title or
+                "creator" in desc or
+                "monetization" in desc
+            )
+            
+            if is_creator:
+                creator_content.append(item)
+            else:
+                other_content.append(item)
+        
+        # Return creator content first, up to limit
+        result = creator_content[:limit]
+        if len(result) < limit:
+            result.extend(other_content[:limit - len(result)])
+        
+        return result[:limit]
+        
+    except Exception as e:
+        print(f"Creator endpoint error: {e}")
+        # Fallback to regular content
+        return db.query(Content).order_by(Content.published_at.desc()).limit(limit).all()
+
+@app.get("/api/content/search")
+async def search_content(
+    q: str = Query(..., description="Search query"),
+    limit: int = Query(50, description="Number of results to return"),
+    db: Session = Depends(get_db)
+):
+    """Search content across all sources."""
+    contents = content_aggregator.search_content(q, limit=limit)
+    return {"query": q, "results": contents, "count": len(contents)}
+
+@app.get("/api/content/{content_id}", response_model=ContentResponse)
+async def get_content_item(content_id: int, db: Session = Depends(get_db)):
+    """Get a specific content item."""
+    content = db.query(Content).filter(Content.id == content_id).first()
+    if not content:
+        raise HTTPException(status_code=404, detail="Content not found")
+    return content
+
+# Content Updates
+@app.post("/api/content/update")
+async def update_content():
+    """Trigger content update from all sources."""
+    try:
+        results = content_aggregator.update_all_sources()
+        return {"message": "Content update completed", "results": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Content update failed: {str(e)}")
+
+@app.post("/api/content/update/{source_id}")
+async def update_source_content(source_id: int, db: Session = Depends(get_db)):
+    """Trigger content update from a specific source."""
+    source = db.query(Source).filter(Source.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    try:
+        count = content_aggregator._update_source_content(source, db)
+        return {"message": f"Updated {count} content items from {source.name}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Source update failed: {str(e)}")
+
+@app.post("/api/sources/{source_id}/scrape")
+async def scrape_source_realtime(source_id: int, db: Session = Depends(get_db)):
+    """Real-time scraping for a specific source when selected."""
+    try:
+        source = db.query(Source).filter(Source.id == source_id).first()
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        # Import the premium scraper
+        from .premium_scraper import PremiumMediaScraper
+        
+        # Create source data format for scraper
+        source_data = {
+            'url': source.url,
+            'type': source.source_type,
+            'category': source.source_metadata.get('category', 'general') if source.source_metadata else 'general',
+            'description': source.description,
+            'priority': 'high'
+        }
+        
+        # Perform real-time scraping
+        async with PremiumMediaScraper() as scraper:
+            count = await scraper.scrape_premium_feed(source.name, source_data)
+        
+        # Update source timestamp  
+        source.last_updated = datetime.utcnow()
+        db.commit()
+        
+        return {
+            "message": f"Real-time scrape completed for {source.name}",
+            "items_added": count,
+            "source": source.name,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        print(f"Real-time scraping error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Real-time scraping failed: {str(e)}")
+
+# Summarization
+@app.post("/api/summarize", response_model=SummaryResponse)
+async def summarize_content(request: SummaryRequest):
+    """Generate AI summary of selected content."""
+    try:
+        summary = summarizer_service.summarize_content(
+            content_ids=request.content_ids,
+            prompt=request.prompt
+        )
+        return summary
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Summarization failed: {str(e)}")
+
+@app.post("/api/summarize/business-models")
+async def analyze_business_models(content_ids: List[int]):
+    """Specialized analysis for media business models."""
+    try:
+        summary = summarizer_service.analyze_business_models(content_ids)
+        return summary
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Business model analysis failed: {str(e)}")
+
+@app.post("/api/summarize/creator-economy")
+async def analyze_creator_economy(content_ids: List[int]):
+    """Specialized analysis for creator economy trends."""
+    try:
+        summary = summarizer_service.analyze_creator_economy(content_ids)
+        return summary
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Creator economy analysis failed: {str(e)}")
+
+@app.post("/api/summarize/vc-trends")
+async def analyze_vc_trends(content_ids: List[int]):
+    """Specialized analysis for VC investment trends."""
+    try:
+        summary = summarizer_service.analyze_vc_trends(content_ids)
+        return summary
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"VC trends analysis failed: {str(e)}")
+
+# User Management
+@app.post("/api/users/{user_id}/sources/{source_id}")
+async def add_user_source(user_id: int, source_id: int, db: Session = Depends(get_db)):
+    """Add a source to a user's selected sources."""
+    # Check if user and source exist
+    user = db.query(User).filter(User.id == user_id).first()
+    source = db.query(Source).filter(Source.id == source_id).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    # Check if already exists
+    existing = db.query(UserSource).filter(
+        UserSource.user_id == user_id,
+        UserSource.source_id == source_id
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Source already added to user")
+    
+    user_source = UserSource(user_id=user_id, source_id=source_id)
+    db.add(user_source)
+    db.commit()
+    
+    return {"message": "Source added to user successfully"}
+
+@app.delete("/api/users/{user_id}/sources/{source_id}")
+async def remove_user_source(user_id: int, source_id: int, db: Session = Depends(get_db)):
+    """Remove a source from a user's selected sources."""
+    user_source = db.query(UserSource).filter(
+        UserSource.user_id == user_id,
+        UserSource.source_id == source_id
+    ).first()
+    
+    if not user_source:
+        raise HTTPException(status_code=404, detail="User source not found")
+    
+    db.delete(user_source)
+    db.commit()
+    
+    return {"message": "Source removed from user successfully"}
+
+@app.get("/api/users/{user_id}/content")
+async def get_user_content(
+    user_id: int,
+    limit: int = Query(50, description="Number of items to return"),
+    source_types: Optional[List[str]] = Query(None, description="Filter by source types"),
+    tags: Optional[List[str]] = Query(None, description="Filter by tags")
+):
+    """Get content for a specific user based on their selected sources."""
+    try:
+        contents = content_aggregator.get_user_content(
+            user_id=user_id,
+            limit=limit,
+            source_types=source_types,
+            tags=tags
+        )
+        return {"user_id": user_id, "content": contents, "count": len(contents)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get user content: {str(e)}")
+
+# Alerts
+@app.post("/api/alerts")
+async def create_alert(alert: AlertCreate, user_id: int, db: Session = Depends(get_db)):
+    """Create a new alert for a user."""
+    # Check if user exists
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    db_alert = Alert(**alert.dict(), user_id=user_id)
+    db.add(db_alert)
+    db.commit()
+    db.refresh(db_alert)
+    
+    return db_alert
+
+@app.get("/api/alerts/{user_id}")
+async def get_user_alerts(user_id: int, db: Session = Depends(get_db)):
+    """Get all alerts for a user."""
+    alerts = db.query(Alert).filter(Alert.user_id == user_id, Alert.is_active == True).all()
+    return {"user_id": user_id, "alerts": alerts}
+
+# Scheduled Tasks
+@app.post("/api/scheduled-tasks")
+async def create_scheduled_task(task: ScheduledTaskCreate, user_id: int, db: Session = Depends(get_db)):
+    """Create a new scheduled task for a user."""
+    # Check if user exists
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    db_task = ScheduledTask(**task.dict(), user_id=user_id)
+    db.add(db_task)
+    db.commit()
+    db.refresh(db_task)
+    
+    return db_task
+
+@app.get("/api/scheduled-tasks/{user_id}")
+async def get_user_scheduled_tasks(user_id: int, db: Session = Depends(get_db)):
+    """Get all scheduled tasks for a user."""
+    tasks = db.query(ScheduledTask).filter(ScheduledTask.user_id == user_id, ScheduledTask.is_active == True).all()
+    return {"user_id": user_id, "tasks": tasks}
+
+# Analytics
+@app.get("/api/analytics/content-stats")
+async def get_content_statistics(user_id: Optional[int] = Query(None, description="User ID for user-specific stats")):
+    """Get content statistics and analytics."""
+    try:
+        stats = content_aggregator.get_content_statistics(user_id=user_id)
+        return stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get statistics: {str(e)}")
+
+# Admin endpoints
+@app.post("/api/admin/cleanup")
+async def cleanup_old_content(days_to_keep: int = Query(90, description="Number of days of content to keep")):
+    """Clean up old content to manage database size."""
+    try:
+        deleted_count = content_aggregator.cleanup_old_content(days_to_keep)
+        return {"message": f"Cleaned up {deleted_count} old content items", "deleted_count": deleted_count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "src.main:app",
+        host=settings.host,
+        port=settings.port,
+        reload=settings.debug
+    )

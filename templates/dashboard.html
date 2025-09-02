@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Monitor - Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .content-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .content-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+        .source-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        /* Style for disabled options in source filter */
+        select option:disabled {
+            background-color: #f3f4f6;
+            color: #6b7280;
+            font-weight: 600;
+        }
+        
+        /* Style for source filter options */
+        select option {
+            padding: 8px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="gradient-bg text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center">
+                    <i class="fas fa-newspaper text-2xl mr-3"></i>
+                    <h1 class="text-2xl font-bold">Media Monitor</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="addSourceBtn" class="bg-white text-purple-600 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                        <i class="fas fa-plus mr-2"></i>Add Source
+                    </button>
+                    <button id="settingsBtn" class="text-white hover:text-gray-200 transition-colors">
+                        <i class="fas fa-cog text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Search and Filters -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <!-- Smart Search Bar -->
+            <div class="mb-6">
+                <!-- Main Search -->
+                <div class="relative mb-3">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <i class="fas fa-brain text-purple-500 text-lg"></i>
+                    </div>
+                    <input type="text" id="searchInput" placeholder="Ask me anything about media business models, creator economy, or startup trends..." 
+                           class="w-full pl-12 pr-16 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-lg placeholder-gray-400 bg-white shadow-sm">
+                    <div class="absolute inset-y-0 right-0 pr-4 flex items-center">
+                        <button id="searchBtn" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Search Insights -->
+                <div id="searchInsights" class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 mb-3 hidden">
+                    <div class="flex items-center mb-2">
+                        <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+                        <span class="font-semibold text-gray-700">Search Insights</span>
+                    </div>
+                    <div id="insightContent" class="text-sm text-gray-600"></div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="flex flex-wrap gap-2 items-center">
+                    <button id="refreshTodayBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Refresh Today's Content
+                    </button>
+                    <span class="text-sm text-gray-500">|</span>
+                    <span class="text-sm text-gray-500">Search for any keyword to see relevant content and filters</span>
+                </div>
+                
+                <!-- Search Results Summary -->
+                <div id="searchSummary" class="mt-3 hidden">
+                    <div class="bg-white border border-gray-200 rounded-lg p-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <i class="fas fa-chart-line text-green-500 mr-2"></i>
+                                <span class="text-sm font-medium text-gray-700">Found <span id="resultCount">0</span> relevant articles</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-xs text-gray-500">Sources:</span>
+                                <div id="sourceBadges" class="flex space-x-1"></div>
+                            </div>
+                        </div>
+                        <div id="keywordHighlights" class="mt-2 hidden">
+                            <span class="text-xs text-gray-500">Key topics: </span>
+                            <div class="inline-flex flex-wrap gap-1 mt-1"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center space-x-4">
+                    <select id="categoryFilter" class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        <option value="">All Categories</option>
+                        <option value="blog">📰 Blogs & Articles</option>
+                        <option value="podcast">🎧 Podcasts</option>
+                        <option value="creator">🎨 Creator Economy</option>
+                        <option value="business">💼 Business & Startup</option>
+                        <option value="youtube">📺 YouTube Channels</option>
+                        <option value="newsletter">📬 Newsletters</option>
+                    </select>
+                    <select id="sourceFilter" class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent min-w-[250px]">
+                        <option value="">Select Category First</option>
+                    </select>
+                    <select id="sortFilter" class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        <option value="date">Sort by Date</option>
+                        <option value="engagement">Sort by Engagement</option>
+                        <option value="relevance">Sort by Relevance</option>
+                    </select>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="refreshBtn" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button>
+                    <button id="summarizeBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-magic mr-2"></i>AI Summarize
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Grid -->
+        <div id="contentGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <!-- Content cards will be dynamically loaded here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden text-center py-12">
+            <div class="bg-white rounded-lg shadow-md p-8 max-w-md mx-auto">
+                <div class="text-6xl mb-4">📰</div>
+                <h3 class="text-xl font-semibold text-gray-800 mb-2">No Content Found</h3>
+                <p class="text-gray-600 mb-4">We couldn't find any content matching your filters or search criteria.</p>
+                <div class="space-y-2 text-sm text-gray-500">
+                    <p>Try:</p>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li>Clearing your search and filters</li>
+                        <li>Selecting a different source type</li>
+                        <li>Refreshing the content to load new articles</li>
+                    </ul>
+                </div>
+                <button onclick="clearAllFilters()" class="mt-4 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">
+                    Clear All Filters
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="hidden text-center py-12">
+            <div class="bg-white rounded-lg shadow-md p-8 max-w-md mx-auto">
+                <div class="animate-spin text-4xl mb-4">⚪</div>
+                <h3 class="text-xl font-semibold text-gray-800 mb-2">Loading Content...</h3>
+                <p class="text-gray-600">Fetching the latest articles and updates for you.</p>
+            </div>
+        </div>
+
+        <!-- Load More Button -->
+        <div class="text-center mt-8">
+            <button id="loadMoreBtn" class="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors">
+                Load More Content
+            </button>
+        </div>
+    </div>
+
+    <!-- Add Source Modal -->
+    <div id="addSourceModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+                <div class="flex justify-between items-center p-6 border-b">
+                    <h3 class="text-lg font-semibold">Add New Source</h3>
+                    <button id="closeModalBtn" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <form id="addSourceForm" class="p-6">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Source Name</label>
+                        <input type="text" id="sourceName" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">URL</label>
+                        <input type="url" id="sourceUrl" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Source Type</label>
+                        <select id="sourceType" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" required>
+                            <option value="">Select Type</option>
+                            <option value="blog">Blog/News</option>
+                            <option value="podcast">Podcast</option>
+                            <option value="twitter">Twitter</option>
+                            <option value="reddit">Reddit</option>
+                        </select>
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Description (Optional)</label>
+                        <textarea id="sourceDescription" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" rows="3"></textarea>
+                    </div>
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" id="cancelBtn" class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors">Cancel</button>
+                        <button type="submit" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">Add Source</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Summarize Modal -->
+    <div id="summarizeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+                <div class="flex justify-between items-center p-6 border-b">
+                    <h3 class="text-lg font-semibold">AI Content Summarization</h3>
+                    <button id="closeSummarizeModalBtn" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Analysis Type</label>
+                        <select id="analysisType" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            <option value="custom">Custom Prompt</option>
+                            <option value="business-models">Media Business Models</option>
+                            <option value="creator-economy">Creator Economy Trends</option>
+                            <option value="vc-trends">VC Investment Trends</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Custom Prompt (if applicable)</label>
+                        <textarea id="customPrompt" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent" rows="4" placeholder="Enter your custom analysis prompt here..."></textarea>
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Selected Content Items</label>
+                        <div id="selectedContentList" class="border border-gray-300 rounded-lg p-3 bg-gray-50 min-h-[100px]">
+                            <p class="text-gray-500 text-center">No content items selected. Check the boxes above content items to select them.</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" id="cancelSummarizeBtn" class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors">Cancel</button>
+                        <button id="generateSummaryBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                            <i class="fas fa-magic mr-2"></i>Generate Summary
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Results Modal -->
+    <div id="summaryResultsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center p-6 border-b sticky top-0 bg-white">
+                    <h3 class="text-lg font-semibold">AI Analysis Results</h3>
+                    <button id="closeSummaryResultsBtn" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6">
+                    <div id="summaryContent" class="prose max-w-none">
+                        <!-- Summary content will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentPage = 0;
+        let selectedContentIds = [];
+        let allContent = [];
+
+        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTodayContent(); // Load only today's content by default
+            loadSourcesForFilters(); // Load sources for filter dropdowns
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Modal controls
+            document.getElementById('addSourceBtn').addEventListener('click', () => showModal('addSourceModal'));
+            document.getElementById('closeModalBtn').addEventListener('click', () => hideModal('addSourceModal'));
+            document.getElementById('cancelBtn').addEventListener('click', () => hideModal('addSourceModal'));
+            
+            // Summarize controls
+            document.getElementById('summarizeBtn').addEventListener('click', () => showModal('summarizeModal'));
+            document.getElementById('closeSummarizeModalBtn').addEventListener('click', () => hideModal('summarizeModal'));
+            document.getElementById('cancelSummarizeBtn').addEventListener('click', () => hideModal('summarizeModal'));
+            document.getElementById('closeSummaryResultsBtn').addEventListener('click', () => hideModal('summaryResultsModal'));
+            
+            // Form submissions
+            document.getElementById('addSourceForm').addEventListener('submit', handleAddSource);
+            document.getElementById('generateSummaryBtn').addEventListener('click', handleGenerateSummary);
+            
+            // Filter controls
+            const categoryFilter = document.getElementById('categoryFilter');
+            const sourceFilter = document.getElementById('sourceFilter');
+            const sortFilter = document.getElementById('sortFilter');
+            
+            if (categoryFilter) {
+                categoryFilter.addEventListener('change', function() {
+                    console.log('🔧 Category changed to:', this.value);
+                    updateSourceFilterForCategory(this.value);
+                    handleFilterChange();
+                });
+            }
+            if (sourceFilter) {
+                sourceFilter.addEventListener('change', handleFilterChange);
+            }
+            if (sortFilter) {
+                sortFilter.addEventListener('change', handleFilterChange);
+            }
+            
+            // Search controls
+            const searchInput = document.getElementById('searchInput');
+            const searchBtn = document.getElementById('searchBtn');
+            
+            if (searchInput) {
+                searchInput.addEventListener('input', debounce(function() {
+                    if (this.value.trim()) {
+                        performSmartSearch();
+                    }
+                }, 500));
+                
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter' && this.value.trim()) {
+                        performSmartSearch();
+                    }
+                });
+            }
+            
+            if (searchBtn) {
+                searchBtn.addEventListener('click', function() {
+                    const query = searchInput.value.trim();
+                    if (query) {
+                        performSmartSearch();
+                    }
+                });
+            }
+            
+            // Refresh button
+            const refreshBtn = document.getElementById('refreshTodayBtn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', refreshTodayContent);
+            }
+            
+            // Other controls
+            document.getElementById('refreshBtn').addEventListener('click', loadContent);
+            document.getElementById('loadMoreBtn').addEventListener('click', loadMoreContent);
+        }
+
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        async function loadTodayContent() {
+            console.log('📅 Loading today\'s content...');
+            showLoadingState();
+            
+            try {
+                // Load sources and content in parallel
+                const [sourcesResponse, contentResponse] = await Promise.all([
+                    fetch('/api/sources'),
+                    fetch('/api/content?limit=30')
+                ]);
+                
+                if (!sourcesResponse.ok || !contentResponse.ok) {
+                    throw new Error('Failed to fetch data');
+                }
+                
+                const sources = await sourcesResponse.json();
+                const allContentData = await contentResponse.json();
+                
+                console.log('📊 Loaded:', allContentData.length, 'content items and', sources.length, 'sources');
+                
+                // Get today's date 
+                const today = new Date();
+                const todayStr = today.toISOString().split('T')[0];
+                
+                // Filter for today's content
+                let todayContent = [];
+                try {
+                    todayContent = allContentData.filter(item => {
+                        if (!item.published_at) return false;
+                        const publishDateStr = item.published_at.split('T')[0];
+                        return publishDateStr === todayStr;
+                    }).slice(0, 10);
+                } catch (filterError) {
+                    console.log('Date filtering error, showing recent content instead');
+                    todayContent = allContentData.slice(0, 10);
+                }
+                
+                console.log('📅 Today\'s content:', todayContent.length, 'items');
+                
+                // Store globally
+                window.allSources = sources;
+                window.sources = sources;
+                allContent = todayContent.length > 0 ? todayContent : allContentData.slice(0, 10);
+                
+                // Always render something
+                renderContentGrid(allContent);
+                
+                // Show empty state message if no today's content
+                if (todayContent.length === 0) {
+                    document.getElementById('contentGrid').innerHTML = `
+                        <div class="col-span-full text-center py-12 bg-gray-50 rounded-lg">
+                            <div class="text-gray-600 text-lg mb-4">📅 No content from today yet</div>
+                            <div class="text-gray-500 text-sm mb-6">Showing recent content instead. Click refresh to check for new articles.</div>
+                            <button onclick="refreshTodayContent()" class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg font-medium">
+                                🔄 Refresh Today's Content
+                            </button>
+                        </div>
+                        ${allContentData.slice(0, 5).map(item => `
+                            <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+                                <h3 class="font-semibold text-lg mb-2">${item.title || 'Untitled'}</h3>
+                                <p class="text-gray-600 text-sm mb-3">${(item.description || '').substring(0, 150)}...</p>
+                                <div class="text-xs text-gray-500">${item.author || 'Unknown'} • ${new Date(item.published_at || Date.now()).toLocaleDateString()}</div>
+                            </div>
+                        `).join('')}
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('Error loading content:', error);
+                document.getElementById('contentGrid').innerHTML = `
+                    <div class="col-span-full text-center py-12 bg-red-50 rounded-lg">
+                        <div class="text-red-600 text-lg mb-4">⚠️ Error loading content</div>
+                        <div class="text-red-500 text-sm mb-6">Please try refreshing or check your connection.</div>
+                        <button onclick="loadTodayContent()" class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg">
+                            Try Again
+                        </button>
+                    </div>
+                `;
+            } finally {
+                // Always hide loading state
+                hideLoadingState();
+            }
+        }
+
+        async function loadContent() {
+            console.log('🚀 Loading all content and sources...');
+            showLoadingState();
+            
+            try {
+                // Load both content and sources to enable proper filtering
+                const [contentResponse, sourcesResponse] = await Promise.all([
+                    fetch('/api/content?limit=100'),  // Load more for better search
+                    fetch('/api/sources')
+                ]);
+                
+                const content = await contentResponse.json();
+                const sources = await sourcesResponse.json();
+                
+                console.log('📊 Content items:', content.length);
+                console.log('📚 Sources:', sources.length);
+                
+                // Debug tags loaded
+                const creatorMonetization = content.filter(item => 
+                    item.tags && item.tags.includes('creator_monetization')
+                );
+                console.log('💰 Creator monetization items loaded:', creatorMonetization.length);
+                
+                if (creatorMonetization.length > 0) {
+                    console.log('📝 Sample creator monetization item:', {
+                        title: creatorMonetization[0].title?.substring(0, 50),
+                        tags: creatorMonetization[0].tags
+                    });
+                }
+                
+                // Enhance content with source information
+                allContent = content.map(item => {
+                    const source = sources.find(s => s.id === item.source_id);
+                    return {
+                        ...item,
+                        source_type: source ? source.source_type : 'unknown',
+                        source_name: source ? source.name : 'Unknown Source'
+                    };
+                });
+                
+                populateSourceFilter(sources);
+                filterContent(); // Apply any existing filters
+                currentPage = 0;
+            } catch (error) {
+                console.error('Error loading content:', error);
+                showNotification('Error loading content', 'error');
+                // Hide loading state on error
+                document.getElementById('loadingState').classList.add('hidden');
+            }
+        }
+
+        async function loadMoreContent() {
+            try {
+                currentPage++;
+                const offset = currentPage * 20;
+                const response = await fetch(`/api/content?limit=20&offset=${offset}`);
+                const moreContent = await response.json();
+                
+                if (moreContent.length > 0) {
+                    allContent = [...allContent, ...moreContent];
+                    renderContentGrid(allContent);
+                } else {
+                    document.getElementById('loadMoreBtn').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error loading more content:', error);
+                showNotification('Error loading more content', 'error');
+            }
+        }
+
+        function renderContentGrid(content) {
+            console.log('🎨 Rendering content grid:', content.length, 'items');
+            
+            // Debug what content is being rendered
+            if (content.length > 0) {
+                console.log('📋 First 3 items being rendered:');
+                content.slice(0, 3).forEach((item, index) => {
+                    console.log(`${index + 1}. ${item.title?.substring(0, 50)}... | Tags: ${item.tags?.slice(0, 3)}`);
+                });
+            }
+            
+            const grid = document.getElementById('contentGrid');
+            const emptyState = document.getElementById('emptyState');
+            const loadingState = document.getElementById('loadingState');
+            
+            if (!grid) {
+                console.error('❌ Content grid element not found!');
+                return;
+            }
+            
+            // Hide loading state
+            loadingState.classList.add('hidden');
+            
+            // Clear grid
+            grid.innerHTML = '';
+            
+            if (content.length === 0) {
+                // Show empty state
+                emptyState.classList.remove('hidden');
+                grid.classList.add('hidden');
+            } else {
+                // Show content
+                emptyState.classList.add('hidden');
+                grid.classList.remove('hidden');
+                
+                content.forEach(item => {
+                    const card = createContentCard(item);
+                    grid.appendChild(card);
+                });
+            }
+        }
+
+        function showLoadingState() {
+            const grid = document.getElementById('contentGrid');
+            const emptyState = document.getElementById('emptyState');
+            const loadingState = document.getElementById('loadingState');
+            
+            grid.classList.add('hidden');
+            emptyState.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+        }
+
+        function createContentCard(content) {
+            const card = document.createElement('div');
+            card.className = 'content-card bg-white rounded-lg shadow-md overflow-hidden';
+            
+            // Get the source type with fallback
+            const sourceType = content.source_type || 'unknown';
+            const sourceIcon = getSourceTypeIcon(sourceType);
+            const sourceLabel = getSourceTypeLabel(sourceType);
+            const sourceColor = getSourceTypeColor(sourceType);
+            
+            card.innerHTML = `
+                <div class="relative">
+                    <div class="w-full h-48 flex items-center justify-center" style="background: linear-gradient(135deg, #${sourceColor}15 0%, #${sourceColor}35 100%);">
+                        <div class="text-center p-6">
+                            <i class="fas ${sourceIcon} text-5xl mb-3" style="color: #${sourceColor};"></i>
+                            <p class="text-sm font-bold uppercase tracking-wide" style="color: #${sourceColor};">${sourceLabel}</p>
+                            <p class="text-xs text-gray-500 mt-1">${content.source_name || 'Unknown Source'}</p>
+                        </div>
+                    </div>
+                    <div class="absolute top-2 right-2">
+                        <input type="checkbox" class="content-checkbox" data-content-id="${content.id}" onchange="toggleContentSelection(${content.id})">
+                    </div>
+                </div>
+                <div class="p-4">
+                    <div class="flex items-center mb-2">
+                        <span class="text-white text-xs px-2 py-1 rounded-full font-medium" style="background-color: #${sourceColor};">${sourceLabel}</span>
+                        <span class="text-gray-500 text-xs ml-auto">${formatDate(content.published_at)}</span>
+                    </div>
+                    <h3 class="font-semibold text-lg mb-2 line-clamp-2">${content.title}</h3>
+                    <p class="text-gray-600 text-sm mb-3 line-clamp-2">${content.description || 'No description available'}</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-500 text-sm">${content.author || 'Unknown Author'}</span>
+                        <a href="${content.content_url || '#'}" target="_blank" class="text-purple-600 hover:text-purple-800 text-sm font-medium">
+                            Read More <i class="fas fa-external-link-alt ml-1"></i>
+                        </a>
+                    </div>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        function getSourceTypeLabel(sourceType) {
+            const labels = {
+                'blog': 'Blog',
+                'podcast': 'Podcast',
+                'twitter': 'Twitter',
+                'reddit': 'Reddit',
+                'unknown': 'Unknown'
+            };
+            return labels[sourceType] || 'Unknown';
+        }
+
+        function getSourceTypeIcon(sourceType) {
+            const icons = {
+                'blog': 'fa-newspaper',
+                'podcast': 'fa-podcast',
+                'twitter': 'fa-twitter',
+                'reddit': 'fa-reddit-alien',
+                'unknown': 'fa-question-circle'
+            };
+            return icons[sourceType] || 'fa-question-circle';
+        }
+
+        function getSourceTypeColor(sourceType) {
+            const colors = {
+                'blog': '6366f1', // Indigo
+                'podcast': 'ec4899', // Pink
+                'twitter': '3b82f6', // Blue  
+                'reddit': 'f97316', // Orange
+                'unknown': '6b7280'  // Gray
+            };
+            return colors[sourceType] || '6b7280';
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'Unknown Date';
+            const date = new Date(dateString);
+            return date.toLocaleDateString();
+        }
+
+        function toggleContentSelection(contentId) {
+            const index = selectedContentIds.indexOf(contentId);
+            if (index > -1) {
+                selectedContentIds.splice(index, 1);
+            } else {
+                selectedContentIds.push(contentId);
+            }
+            updateSelectedContentList();
+        }
+
+        function updateSelectedContentList() {
+            const list = document.getElementById('selectedContentList');
+            if (selectedContentIds.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-center">No content items selected. Check the boxes above content items to select them.</p>';
+                return;
+            }
+
+            const selectedContent = allContent.filter(item => selectedContentIds.includes(item.id));
+            list.innerHTML = selectedContent.map(item => `
+                <div class="flex items-center justify-between p-2 bg-white rounded border mb-2">
+                    <span class="text-sm font-medium">${item.title}</span>
+                    <button onclick="removeContentSelection(${item.id})" class="text-red-500 hover:text-red-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function removeContentSelection(contentId) {
+            const index = selectedContentIds.indexOf(contentId);
+            if (index > -1) {
+                selectedContentIds.splice(index, 1);
+                // Uncheck the checkbox
+                const checkbox = document.querySelector(`input[data-content-id="${contentId}"]`);
+                if (checkbox) checkbox.checked = false;
+                updateSelectedContentList();
+            }
+        }
+
+        async function handleAddSource(event) {
+            event.preventDefault();
+            
+            const formData = {
+                name: document.getElementById('sourceName').value,
+                url: document.getElementById('sourceUrl').value,
+                source_type: document.getElementById('sourceType').value,
+                description: document.getElementById('sourceDescription').value
+            };
+
+            try {
+                const response = await fetch('/api/sources', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (response.ok) {
+                    showNotification('Source added successfully!', 'success');
+                    hideModal('addSourceModal');
+                    document.getElementById('addSourceForm').reset();
+                    loadContent(); // Refresh content
+                } else {
+                    throw new Error('Failed to add source');
+                }
+            } catch (error) {
+                console.error('Error adding source:', error);
+                showNotification('Error adding source', 'error');
+            }
+        }
+
+        async function handleGenerateSummary() {
+            if (selectedContentIds.length === 0) {
+                showNotification('Please select at least one content item', 'warning');
+                return;
+            }
+
+            const analysisType = document.getElementById('analysisType').value;
+            let prompt = '';
+
+            if (analysisType === 'custom') {
+                prompt = document.getElementById('customPrompt').value;
+                if (!prompt.trim()) {
+                    showNotification('Please enter a custom prompt', 'warning');
+                    return;
+                }
+            }
+
+            try {
+                let endpoint = '/api/summarize';
+                let requestBody = {
+                    content_ids: selectedContentIds,
+                    prompt: prompt || 'Analyze the selected content and provide insights.'
+                };
+
+                if (analysisType !== 'custom') {
+                    endpoint = `/api/summarize/${analysisType}`;
+                    requestBody = selectedContentIds;
+                }
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (response.ok) {
+                    const summary = await response.json();
+                    showSummaryResults(summary);
+                    hideModal('summarizeModal');
+                } else {
+                    throw new Error('Failed to generate summary');
+                }
+            } catch (error) {
+                console.error('Error generating summary:', error);
+                showNotification('Error generating summary', 'error');
+            }
+        }
+
+        function showSummaryResults(summary) {
+            const content = document.getElementById('summaryContent');
+            content.innerHTML = `
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold mb-2">Analysis Results</h4>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-600 mb-2"><strong>Model Used:</strong> ${summary.model_used || 'Unknown'}</p>
+                        <p class="text-sm text-gray-600 mb-2"><strong>Tokens Used:</strong> ${summary.tokens_used || 'Unknown'}</p>
+                        <p class="text-sm text-gray-600"><strong>Generated:</strong> ${formatDate(summary.created_at)}</p>
+                    </div>
+                </div>
+                <div class="prose">
+                    <h5 class="text-lg font-semibold mb-3">Summary</h5>
+                    <div class="whitespace-pre-wrap text-gray-700">${summary.summary_text}</div>
+                </div>
+            `;
+            
+            showModal('summaryResultsModal');
+        }
+
+        function updateSourceFilter() {
+            console.log('🔧 Updating source filter based on category selection');
+            const categoryFilter = document.getElementById('categoryFilter');
+            const sourceFilter = document.getElementById('sourceFilter');
+            
+            if (!categoryFilter || !sourceFilter) {
+                console.error('❌ Filter elements not found!');
+                return;
+            }
+            
+            const selectedCategory = categoryFilter.value;
+            
+            // Clear source filter
+            sourceFilter.innerHTML = '<option value="">All Sources in Category</option>';
+            
+            if (!selectedCategory) {
+                sourceFilter.innerHTML = '<option value="">Select Category First</option>';
+                sourceFilter.disabled = true;
+                filterContent(); // Show all content
+                return;
+            }
+            
+            sourceFilter.disabled = false;
+            
+            // Filter sources by category - check both name and metadata
+            const categorySources = window.allSources.filter(source => {
+                // Check metadata category first
+                if (source.source_metadata && source.source_metadata.category === selectedCategory) {
+                    return true;
+                }
+                
+                // Fallback to name-based matching for existing sources
+                const categoryKeywords = {
+                    'vc_insights': ['a16z', 'sequoia', 'first round', 'bessemer', 'vc', 'venture'],
+                    'media_analysis': ['stratechery', 'information', 'medianama', 'platform'],
+                    'creator_economy': ['creator', 'passion economy', 'beehiiv'],
+                    'business_podcasts': ['all-in', 'business'],
+                    'creator_podcasts': ['colin', 'samir', 'think media', 'creator'],
+                    'business_models': ['harvard', 'mckinsey', 'bcg', 'consulting']
+                };
+                
+                const keywords = categoryKeywords[selectedCategory] || [];
+                const sourceName = source.name.toLowerCase();
+                return keywords.some(keyword => sourceName.includes(keyword));
+            });
+            
+            // Add source options with real-time scraping button
+            categorySources.forEach(source => {
+                const option = document.createElement('option');
+                option.value = source.id;
+                option.textContent = `${source.name} (${source.source_type})`;
+                sourceFilter.appendChild(option);
+            });
+            
+            // Add "Scrape Now" option if sources found
+            if (categorySources.length > 0) {
+                const scrapeOption = document.createElement('option');
+                scrapeOption.value = 'scrape_all';
+                scrapeOption.textContent = '🔄 Scrape All Sources in Category';
+                scrapeOption.style.fontWeight = 'bold';
+                scrapeOption.style.color = '#059669';
+                sourceFilter.appendChild(scrapeOption);
+            }
+            
+            console.log(`✅ Found ${categorySources.length} sources for category: ${selectedCategory}`);
+            
+            // Trigger filtering
+            filterContent();
+        }
+
+        function populateSourceFilter(sources) {
+            console.log('🔧 Storing sources for category-based filtering:', sources.length);
+            // Store sources globally for nested filtering
+            window.allSources = sources;
+            
+            // Initialize empty source filter
+            const sourceFilter = document.getElementById('sourceFilter');
+            if (sourceFilter) {
+                sourceFilter.innerHTML = '<option value="">Select Category First</option>';
+                sourceFilter.disabled = true;
+            }
+            
+            console.log('✅ Sources stored for category-based filtering');
+        }
+
+        async function handleSourceSelection() {
+            const sourceFilter = document.getElementById('sourceFilter');
+            const selectedValue = sourceFilter.value;
+            
+            if (selectedValue === 'scrape_all') {
+                await scrapeAllSourcesInCategory();
+                return;
+            } else if (selectedValue && selectedValue !== '') {
+                await scrapeSourceRealtime(parseInt(selectedValue));
+            }
+            
+            // Then filter content
+            filterContent();
+        }
+
+        async function scrapeSourceRealtime(sourceId) {
+            try {
+                console.log(`🔄 Real-time scraping source ${sourceId}...`);
+                
+                // Show notification
+                showNotification('🔄 Scraping latest content...', 'info');
+                
+                const response = await fetch(`/api/sources/${sourceId}/scrape`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showNotification(`✅ ${result.message}. Added ${result.items_added} new items!`, 'success');
+                    
+                    // Refresh content to show new items
+                    await loadContent();
+                } else {
+                    showNotification(`❌ Scraping failed: ${result.detail}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Real-time scraping error:', error);
+                showNotification('❌ Scraping failed. Please try again.', 'error');
+            }
+        }
+
+        async function scrapeAllSourcesInCategory() {
+            const categoryFilter = document.getElementById('categoryFilter');
+            const selectedCategory = categoryFilter.value;
+            
+            if (!selectedCategory) return;
+            
+            // Get sources in category
+            const categorySources = window.allSources.filter(source => {
+                // Check metadata category first
+                if (source.source_metadata && source.source_metadata.category === selectedCategory) {
+                    return true;
+                }
+                
+                // Fallback to name-based matching
+                const categoryKeywords = {
+                    'vc_insights': ['a16z', 'sequoia', 'first round', 'bessemer', 'vc', 'venture'],
+                    'media_analysis': ['stratechery', 'information', 'medianama', 'platform'],
+                    'creator_economy': ['creator', 'passion economy', 'beehiiv', 'tubefilter'],
+                    'business_podcasts': ['all-in', 'business'],
+                    'creator_podcasts': ['colin', 'samir', 'think media', 'creator'],
+                    'business_models': ['harvard', 'mckinsey', 'bcg', 'consulting', 'business insider', 'forbes']
+                };
+                
+                const keywords = categoryKeywords[selectedCategory] || [];
+                const sourceName = source.name.toLowerCase();
+                return keywords.some(keyword => sourceName.includes(keyword));
+            });
+            
+            if (categorySources.length === 0) {
+                showNotification('No sources found in this category', 'warning');
+                return;
+            }
+            
+            showNotification(`🔄 Scraping ${categorySources.length} sources in category...`, 'info');
+            
+            let totalAdded = 0;
+            
+            for (const source of categorySources) {
+                try {
+                    const response = await fetch(`/api/sources/${source.id}/scrape`, {
+                        method: 'POST'
+                    });
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        totalAdded += result.items_added;
+                        console.log(`✅ ${source.name}: ${result.items_added} items`);
+                    }
+                } catch (error) {
+                    console.error(`❌ Failed to scrape ${source.name}:`, error);
+                }
+            }
+            
+            showNotification(`✅ Category scrape complete! Added ${totalAdded} new items total.`, 'success');
+            await loadContent();
+        }
+
+        function getFilteredContent() {
+            const categoryFilter = document.getElementById('categoryFilter');
+            const sourceFilter = document.getElementById('sourceFilter');
+            
+            if (!categoryFilter || !sourceFilter) return allContent;
+            
+            const selectedCategory = categoryFilter.value;
+            const sourceId = sourceFilter.value;
+            
+            console.log('🔍 Filtering:', { selectedCategory, sourceId, totalContent: allContent.length });
+            
+            let filteredContent = [...allContent];
+            
+            // Filter by category first with improved logic
+            if (selectedCategory) {
+                filteredContent = filteredContent.filter(item => {
+                    // Check content title and description for category keywords
+                    const text = `${item.title || ''} ${item.description || ''}`.toLowerCase();
+                    
+                    // Check tags
+                    const tags = Array.isArray(item.tags) ? item.tags.join(' ').toLowerCase() : '';
+                    
+                    // Get source info
+                    const source = window.allSources?.find(s => s.id === item.source_id);
+                    const sourceName = source ? source.name.toLowerCase() : '';
+                    
+                    const allText = `${text} ${tags} ${sourceName}`;
+                    
+                    // Enhanced category matching
+                    switch (selectedCategory) {
+                        case 'vc_insights':
+                            return allText.includes('vc') || allText.includes('venture') || 
+                                   allText.includes('investment') || allText.includes('funding') ||
+                                   allText.includes('startup');
+                        case 'media_analysis':
+                            return allText.includes('media') || allText.includes('platform') || 
+                                   allText.includes('streaming') || allText.includes('digital') ||
+                                   allText.includes('advertising') || allText.includes('subscription');
+                        case 'creator_economy':
+                            return allText.includes('creator') || allText.includes('influencer') ||
+                                   allText.includes('youtube') || allText.includes('social media') ||
+                                   allText.includes('content creation') || allText.includes('monetization') ||
+                                   sourceName.includes('tubefilter');
+                        case 'business_podcasts':
+                            return (allText.includes('business') || allText.includes('entrepreneur')) &&
+                                   (item.source_type === 'podcast' || tags.includes('podcast'));
+                        case 'creator_podcasts':
+                            return (allText.includes('creator') || allText.includes('youtube') || allText.includes('content')) &&
+                                   (item.source_type === 'podcast' || tags.includes('podcast'));
+                        case 'business_models':
+                            return allText.includes('business model') || allText.includes('revenue') ||
+                                   allText.includes('strategy') || allText.includes('market') ||
+                                   sourceName.includes('business insider') || sourceName.includes('forbes');
+                        default:
+                            return true;
+                    }
+                });
+            }
+            
+            // Filter by specific source
+            if (sourceId && sourceId !== 'scrape_all') {
+                filteredContent = filteredContent.filter(item => item.source_id === parseInt(sourceId));
+            }
+            
+            console.log('📊 Final filtered result:', filteredContent.length);
+            return filteredContent;
+        }
+
+        function filterContent() {
+            const filteredContent = getFilteredContent();
+            const sortedContent = applySorting(filteredContent);
+            renderContentGrid(sortedContent);
+        }
+
+        function sortContent() {
+            const filteredContent = getFilteredContent();
+            const sortedContent = applySorting(filteredContent);
+            renderContentGrid(sortedContent);
+        }
+
+        function applySorting(content) {
+            const sortFilter = document.getElementById('sortFilter');
+            if (!sortFilter) return content;
+            
+            const sortBy = sortFilter.value;
+            let sortedContent = [...content];
+
+            switch (sortBy) {
+                case 'date':
+                    sortedContent.sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
+                    break;
+                case 'engagement':
+                    // Sort by engagement metrics if available
+                    sortedContent.sort((a, b) => {
+                        const aEngagement = getEngagementScore(a);
+                        const bEngagement = getEngagementScore(b);
+                        return bEngagement - aEngagement;
+                    });
+                    break;
+                case 'relevance':
+                    // Simple relevance scoring based on title length and description
+                    sortedContent.sort((a, b) => {
+                        const aScore = (a.title?.length || 0) + (a.description?.length || 0);
+                        const bScore = (b.title?.length || 0) + (b.description?.length || 0);
+                        return bScore - aScore;
+                    });
+                    break;
+            }
+
+            return sortedContent;
+        }
+
+        function getEngagementScore(content) {
+            if (!content.engagement_metrics) return 0;
+            
+            let score = 0;
+            const metrics = content.engagement_metrics;
+            
+            if (metrics.likes) score += metrics.likes;
+            if (metrics.retweets) score += metrics.retweets * 2;
+            if (metrics.comments) score += metrics.comments * 3;
+            if (metrics.upvotes) score += metrics.upvotes;
+            
+            return score;
+        }
+
+        function handleSearchInput() {
+            const query = document.getElementById('searchInput').value.trim();
+            
+            if (query.length > 2) {
+                showSearchInsights(query);
+            } else {
+                hideSearchInsights();
+            }
+        }
+
+        async function performSmartSearch() {
+            console.log('🔍 Performing keyword search...');
+            const searchQuery = document.getElementById('searchInput').value.trim();
+            console.log('Search query:', searchQuery);
+            
+            if (!searchQuery) {
+                hideSearchInsights();
+                hideSearchSummary();
+                filterContent();
+                return;
+            }
+            
+            // Show search insights
+            showSearchInsights(searchQuery);
+            
+            // Use backend API for simple keyword search
+            const searchResults = await performKeywordSearch(searchQuery);
+            
+            // Show search summary
+            showSearchSummary(searchResults, searchQuery);
+            
+            // Render results
+            const sortedContent = applySorting(searchResults);
+            renderContentGrid(sortedContent);
+        }
+
+        async function performKeywordSearch(query) {
+            console.log('🔍 Searching for:', query);
+            
+            try {
+                // Use the backend search API for simple keyword matching
+                const response = await fetch(`/api/content/search?q=${encodeURIComponent(query)}&limit=100`);
+                if (!response.ok) {
+                    throw new Error(`Search failed: ${response.status}`);
+                }
+                
+                const searchData = await response.json();
+                const searchResults = searchData.results || [];
+                
+                console.log(`📊 Found ${searchResults.length} results for: "${query}"`);
+                
+                // Update contextual filters based on search results
+                updateContextualFilters(searchResults);
+                
+                // Apply source filtering if active
+                const filteredResults = applySourceFiltering(searchResults);
+                
+                return filteredResults;
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                showNotification('Search failed. Please try again.', 'error');
+                return [];
+            }
+        }
+        
+        async function loadSourcesForFilters() {
+            try {
+                const response = await fetch('/api/sources');
+                window.allSources = await response.json();
+                console.log(`📂 Loaded ${window.allSources?.length || 0} sources for filtering`);
+            } catch (error) {
+                console.error('Error loading sources:', error);
+                window.allSources = [];
+            }
+        }
+        
+        function updateSourceFilterForCategory(selectedCategory) {
+            const sourceFilter = document.getElementById('sourceFilter');
+            if (!sourceFilter || !window.allSources) return;
+            
+            console.log(`🔍 Updating source filter for category: "${selectedCategory}"`);
+            
+            // Clear current options
+            sourceFilter.innerHTML = '';
+            
+            if (selectedCategory) {
+                // Get sources for this category
+                const availableSources = window.allSources.filter(source => source.source_type === selectedCategory);
+                console.log(`📰 Found ${availableSources.length} sources for category "${selectedCategory}"`);
+                
+                sourceFilter.innerHTML = '<option value="">All Sources in Category</option>';
+                
+                if (availableSources.length > 0) {
+                    availableSources.forEach(source => {
+                        const option = document.createElement('option');
+                        option.value = source.name;
+                        option.textContent = source.name;
+                        sourceFilter.appendChild(option);
+                    });
+                } else {
+                    sourceFilter.innerHTML += '<option value="">No sources found</option>';
+                }
+            } else {
+                sourceFilter.innerHTML = '<option value="">Select Category First</option>';
+            }
+        }
+
+        function updateContextualFilters(searchResults) {
+            if (searchResults.length === 0) return;
+            
+            // Extract unique source types and sources from search results
+            const sourcesInResults = new Map();
+            const sourceTypesInResults = new Set();
+            
+            searchResults.forEach(item => {
+                const source = window.allSources?.find(s => s.id === item.source_id);
+                if (source) {
+                    sourcesInResults.set(source.id, source);
+                    sourceTypesInResults.add(source.source_type);
+                }
+            });
+            
+            // Update category filter with contextual categories
+            const categoryFilter = document.getElementById('categoryFilter');
+            const sourceFilter = document.getElementById('sourceFilter');
+            
+            // Build category options based on source types found in results
+            let categoryOptions = '<option value="">All Categories</option>';
+            
+            const categoryMap = {
+                'blog': '📰 Blogs & Articles',
+                'podcast': '🎧 Podcasts',
+                'research': '📚 Research Papers',
+                'news': '📰 News',
+                'newsletter': '📬 Newsletters',
+                'video': '🎥 Videos',
+                'social': '💬 Social Media',
+                'report': '📊 Reports'
+            };
+            
+            sourceTypesInResults.forEach(sourceType => {
+                const categoryLabel = categoryMap[sourceType] || `📄 ${sourceType.charAt(0).toUpperCase() + sourceType.slice(1)}`;
+                categoryOptions += `<option value="${sourceType}">${categoryLabel}</option>`;
+            });
+            
+            categoryFilter.innerHTML = categoryOptions;
+            
+            // Build source options based on sources found in results
+            let sourceOptions = '<option value="">All Sources in Results</option>';
+            
+            Array.from(sourcesInResults.values())
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .forEach(source => {
+                    const resultCount = searchResults.filter(item => item.source_id === source.id).length;
+                    sourceOptions += `<option value="${source.name}">${source.name} (${resultCount})</option>`;
+                });
+            
+            sourceFilter.innerHTML = sourceOptions;
+            
+            // Show filter section if hidden
+            const filtersSection = document.querySelector('.flex.flex-wrap.items-center.justify-between.gap-4');
+            if (filtersSection) {
+                filtersSection.classList.remove('hidden');
+            }
+        }
+        
+        function applySourceFiltering(content) {
+            const categoryFilter = document.getElementById('categoryFilter');
+            const sourceFilter = document.getElementById('sourceFilter');
+            const selectedCategory = categoryFilter ? categoryFilter.value : '';
+            const selectedSource = sourceFilter ? sourceFilter.value : '';
+            
+            let filteredContent = content;
+            
+            // Apply category filter - more flexible matching
+            if (selectedCategory) {
+                filteredContent = filteredContent.filter(item => {
+                    const source = window.allSources?.find(s => s.id === item.source_id);
+                    if (!source) return false;
+                    
+                    // Match by source type or content keywords
+                    const sourceTypeMatch = source.source_type === selectedCategory;
+                    const contentMatch = selectedCategory === 'creator' && 
+                        (item.title + ' ' + (item.description || '')).toLowerCase().includes('creator');
+                    const businessMatch = selectedCategory === 'business' && 
+                        (item.title + ' ' + (item.description || '')).toLowerCase().match(/business|startup|revenue|funding/);
+                    
+                    return sourceTypeMatch || contentMatch || businessMatch;
+                });
+            }
+            
+            // Apply source filter
+            if (selectedSource) {
+                filteredContent = filteredContent.filter(item => {
+                    const source = window.allSources?.find(s => s.id === item.source_id);
+                    return source && source.name === selectedSource;
+                });
+            }
+            
+            console.log(`🔍 Filtered from ${content.length} to ${filteredContent.length} items`);
+            return filteredContent;
+        }
+
+        function showSearchInsights(query) {
+            const insights = generateSearchInsights(query);
+            const insightsDiv = document.getElementById('searchInsights');
+            const contentDiv = document.getElementById('insightContent');
+            
+            if (insights) {
+                contentDiv.innerHTML = insights;
+                insightsDiv.classList.remove('hidden');
+            } else {
+                hideSearchInsights();
+            }
+        }
+
+        function hideSearchInsights() {
+            document.getElementById('searchInsights').classList.add('hidden');
+        }
+
+        function generateSearchInsights(query) {
+            if (query.length < 2) {
+                return null;
+            }
+            
+            return `🔍 Searching across all articles for: <strong>"${query}"</strong><br>Results will include any content where this keyword appears in the title, description, or article text.`;
+        }
+
+        function showSearchSummary(results, query) {
+            const summaryDiv = document.getElementById('searchSummary');
+            const countSpan = document.getElementById('resultCount');
+            const badgesDiv = document.getElementById('sourceBadges');
+            
+            if (results && results.length > 0) {
+            countSpan.textContent = results.length;
+            
+            // Show unique sources
+                const uniqueSources = [...new Set(results.map(item => {
+                    const source = sources?.find(s => s.id === item.source_id) || window.allSources?.find(s => s.id === item.source_id);
+                return source?.name || 'Unknown';
+            }))].slice(0, 4);
+            
+                badgesDiv.innerHTML = uniqueSources.map(source => 
+                    `<span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">${source}</span>`
+            ).join('');
+            
+            summaryDiv.classList.remove('hidden');
+            } else {
+                countSpan.textContent = '0';
+                badgesDiv.innerHTML = `<span class="text-sm text-gray-500">No articles found containing "${query}". Try different keywords.</span>`;
+            summaryDiv.classList.remove('hidden');
+            }
+        }
+
+        function hideSearchSummary() {
+            document.getElementById('searchSummary').classList.add('hidden');
+        }
+
+        // Legacy function for backwards compatibility
+        function searchContent() {
+            performSmartSearch();
+        }
+
+        function clearAllFilters() {
+            // Clear search
+            document.getElementById('searchInput').value = '';
+            
+            // Clear filters
+            document.getElementById('sourceTypeFilter').value = '';
+            document.getElementById('sourceFilter').value = '';
+            document.getElementById('sortFilter').value = 'date';
+            
+            // Show all content
+            const sortedContent = applySorting(allContent);
+            renderContentGrid(sortedContent);
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        function handleFilterChange() {
+            // Apply filters to current search results or content
+            const searchInput = document.getElementById('searchInput');
+            const categoryFilter = document.getElementById('categoryFilter');
+            
+            if (searchInput.value.trim()) {
+                // If there's a search query, reapply search with filters
+                performSmartSearch();
+            } else if (categoryFilter.value) {
+                // If a category is selected, load all content and filter
+                loadAllContentAndFilter();
+            } else {
+                // If no search and no category, show today's content
+                const filteredContent = applySourceFiltering(allContent);
+                const sortedContent = applySorting(filteredContent);
+                renderContentGrid(sortedContent);
+            }
+        }
+        
+        async function loadAllContentAndFilter() {
+            console.log('📂 Loading all content for category filtering...');
+            showLoadingState();
+            
+            try {
+                // Load more content for filtering
+                const response = await fetch('/api/content?limit=100');
+                const allContentData = await response.json();
+                
+                console.log(`📊 Loaded ${allContentData.length} items for filtering`);
+                
+                // Apply current filters
+                const filteredContent = applySourceFiltering(allContentData);
+                const sortedContent = applySorting(filteredContent);
+                
+                if (filteredContent.length > 0) {
+                    renderContentGrid(sortedContent);
+                } else {
+                    // Show message about no matches
+                    document.getElementById('contentGrid').innerHTML = `
+                        <div class="col-span-full text-center py-12 bg-yellow-50 rounded-lg">
+                            <div class="text-yellow-700 text-lg mb-4">🔍 No content found for this category</div>
+                            <div class="text-yellow-600 text-sm mb-6">Try a different category or use search to find specific content.</div>
+                            <button onclick="clearFilters()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg">
+                                Clear Filters
+                            </button>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('Error loading content for filtering:', error);
+                showNotification('Failed to load content for filtering', 'error');
+            }
+        }
+        
+        function clearFilters() {
+            document.getElementById('categoryFilter').value = '';
+            document.getElementById('sourceFilter').value = '';
+            document.getElementById('searchInput').value = '';
+            loadTodayContent();
+        }
+
+        function showLoadingState() {
+            const contentGrid = document.getElementById('contentGrid');
+            if (contentGrid) {
+                contentGrid.innerHTML = `
+                    <div class="col-span-full flex flex-col items-center justify-center py-12">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
+                        <div class="text-gray-600 text-lg font-medium">Loading Content...</div>
+                        <div class="text-gray-500 text-sm mt-2">Fetching the latest articles and updates for you.</div>
+                    </div>
+                `;
+            }
+        }
+
+        function hideLoadingState() {
+            // Loading state is hidden when content is rendered
+            console.log('✅ Loading complete');
+        }
+
+        function renderContentGrid(content) {
+            const contentGrid = document.getElementById('contentGrid');
+            if (!contentGrid) {
+                console.error('Content grid element not found');
+                return;
+            }
+
+            if (!content || content.length === 0) {
+                contentGrid.innerHTML = `
+                    <div class="col-span-full text-center py-12 bg-gray-50 rounded-lg">
+                        <div class="text-gray-600 text-lg mb-4">📭 No content available</div>
+                        <div class="text-gray-500 text-sm mb-6">Try refreshing or use search to find specific content.</div>
+                        <button onclick="refreshTodayContent()" class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg">
+                            Refresh Content
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            const contentCards = content.map(item => {
+                const source = window.allSources?.find(s => s.id === item.source_id);
+                const sourceName = source ? source.name : 'Unknown Source';
+                const sourceType = source ? source.source_type : 'unknown';
+                
+                const publishDate = item.published_at ? new Date(item.published_at).toLocaleDateString() : 'No date';
+                
+                return `
+                    <div class="bg-white rounded-lg shadow hover:shadow-lg transition-all duration-200 border border-gray-200">
+                        <div class="p-6">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">${sourceType.toUpperCase()}</span>
+                                <input type="checkbox" class="content-checkbox" data-content-id="${item.id}">
+                            </div>
+                            <h3 class="font-semibold text-lg mb-2 text-gray-900 line-clamp-2">
+                                ${item.title || 'Untitled'}
+                            </h3>
+                            <p class="text-gray-600 text-sm mb-4 line-clamp-3">
+                                ${(item.description || 'No description available').substring(0, 200)}${item.description && item.description.length > 200 ? '...' : ''}
+                            </p>
+                            <div class="flex items-center justify-between text-xs text-gray-500">
+                                <span>${sourceName}</span>
+                                <span>${publishDate}</span>
+                            </div>
+                            ${item.content_url ? `
+                                <div class="mt-3">
+                                    <a href="${item.content_url}" target="_blank" class="text-purple-600 hover:text-purple-800 text-sm font-medium">
+                                        Read More →
+                                    </a>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            contentGrid.innerHTML = contentCards;
+            
+            // Set up checkbox event listeners
+            document.querySelectorAll('.content-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', updateSelectedContentList);
+            });
+            
+            console.log(`✅ Rendered ${content.length} content items`);
+        }
+
+        function updateSelectedContentList() {
+            const checkboxes = document.querySelectorAll('.content-checkbox:checked');
+            selectedContentIds = Array.from(checkboxes).map(cb => parseInt(cb.dataset.contentId));
+            
+            const summarizeBtn = document.getElementById('summarizeBtn');
+            if (summarizeBtn) {
+                summarizeBtn.textContent = selectedContentIds.length > 0 ? 
+                    `✨ AI Summarize (${selectedContentIds.length})` : 
+                    '✨ AI Summarize';
+                summarizeBtn.disabled = selectedContentIds.length === 0;
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            // Simple notification system - you might want to use a library like Toastify
+            alert(`${type.toUpperCase()}: ${message}`);
+        }
+
+        async function refreshTodayContent() {
+            console.log('🔄 Refreshing today\'s content...');
+            document.getElementById('refreshTodayBtn').innerHTML = `
+                <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Refreshing...
+            `;
+            
+            try {
+                // Trigger content update from all sources
+                await fetch('/api/content/update', { method: 'POST' });
+                
+                // Wait a moment for processing
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Reload today's content
+                await loadTodayContent();
+                
+                showNotification('Today\'s content refreshed successfully!', 'success');
+                
+            } catch (error) {
+                console.error('Error refreshing content:', error);
+                showNotification('Failed to refresh content', 'error');
+            } finally {
+                // Reset button
+                document.getElementById('refreshTodayBtn').innerHTML = `
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    Refresh Today's Content
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
