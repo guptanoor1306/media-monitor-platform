@@ -11,6 +11,7 @@ class SummarizerService:
         self.client = None
         self.model = "gpt-3.5-turbo"
         self.max_tokens = 1000
+        self.use_legacy_api = False  # Track which API style to use
     
     def _init_client(self):
         """Initialize OpenAI client only when needed."""
@@ -35,12 +36,14 @@ class SummarizerService:
                 # Initialize with minimal parameters to avoid version conflicts
                 try:
                     self.client = OpenAI(api_key=settings.openai_api_key)
+                    self.use_legacy_api = False
                 except TypeError as te:
                     # Handle version-specific initialization issues
                     print(f"⚠️  Trying alternative initialization due to: {te}")
                     import openai
                     openai.api_key = settings.openai_api_key
                     self.client = openai
+                    self.use_legacy_api = True  # Flag that we're using legacy API
                     print(f"✅ OpenAI client initialized with legacy method")
                     return True
                 
@@ -111,9 +114,10 @@ class SummarizerService:
         try:
             content_text = "\n".join([f"{c.title}: {c.description}" for c in contents])
             
-            # Try new OpenAI client style first
-            if hasattr(self.client, 'chat') and hasattr(self.client.chat, 'completions'):
-                response = self.client.chat.completions.create(
+            # Use the appropriate API style based on initialization
+            if self.use_legacy_api:
+                # Use legacy OpenAI API style (for v1.3.8)
+                response = self.client.ChatCompletion.create(
                     model=self.model,
                     messages=[
                         {"role": "user", "content": f"{prompt}\n\nContent:\n{content_text}"}
@@ -121,11 +125,9 @@ class SummarizerService:
                     max_tokens=self.max_tokens
                 )
                 return response.choices[0].message.content.strip()
-            
-            # Try legacy OpenAI style (for v1.3.8)
             else:
-                import openai
-                response = openai.ChatCompletion.create(
+                # Use new OpenAI client style
+                response = self.client.chat.completions.create(
                     model=self.model,
                     messages=[
                         {"role": "user", "content": f"{prompt}\n\nContent:\n{content_text}"}
