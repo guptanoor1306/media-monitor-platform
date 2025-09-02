@@ -78,6 +78,75 @@ async def startup_event():
 async def health_check():
     return {"status": "healthy", "service": "Media Monitor Platform"}
 
+# Daily scraping endpoint
+@app.post("/api/scrape/daily")
+async def trigger_daily_scrape():
+    """Manually trigger daily scraping."""
+    try:
+        from src.daily_scraper import run_daily_scrape_sync
+        print("🚀 Manual daily scrape triggered via API")
+        
+        # Run scraping in background to avoid timeout
+        import threading
+        
+        def run_scrape():
+            try:
+                stats = run_daily_scrape_sync()
+                print(f"✅ Background scrape completed: {stats}")
+            except Exception as e:
+                print(f"❌ Background scrape failed: {e}")
+        
+        # Start scraping in background thread
+        thread = threading.Thread(target=run_scrape)
+        thread.daemon = True
+        thread.start()
+        
+        return {
+            "status": "started",
+            "message": "Daily scraping started in background",
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error", 
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+@app.get("/api/scrape/status")
+async def scrape_status():
+    """Get scraping statistics."""
+    try:
+        from src.database import SessionLocal
+        from src.models import Source, Content
+        
+        db = SessionLocal()
+        content_count = db.query(Content).count()
+        source_count = db.query(Source).count()
+        
+        # Get recent content (last 24 hours)
+        from datetime import datetime, timedelta
+        yesterday = datetime.now() - timedelta(days=1)
+        recent_content = db.query(Content).filter(Content.created_at >= yesterday).count()
+        
+        db.close()
+        
+        return {
+            "total_content": content_count,
+            "total_sources": source_count,
+            "recent_content_24h": recent_content,
+            "last_check": datetime.now().isoformat(),
+            "status": "active"
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
 @app.get("/debug/openai")
 async def debug_openai():
     """Debug endpoint to check OpenAI configuration."""

@@ -431,6 +431,11 @@ class PremiumMediaScraper:
                         tags.append('artificial_intelligence')
                     
                     # Create enhanced content
+                    # Detect if content is premium/restricted
+                    is_premium = any(indicator in (title + description).lower() 
+                                   for indicator in ['premium', 'subscriber', 'paywall', 'members only', 'pro'])
+                    is_podcast = source_data.get('type') == 'podcast' or 'podcast' in source_data.get('category', '')
+                    
                     content_item = Content(
                         source_id=source.id,
                         title=title,
@@ -442,6 +447,9 @@ class PremiumMediaScraper:
                         engagement_metrics={
                             'source': 'Premium RSS',
                             'category': source_data['category'],
+                            'is_premium': is_premium,
+                            'is_podcast': is_podcast,
+                            'requires_visit_source': is_premium or is_podcast,
                             'priority': source_data['priority'],
                             'relevance_score': relevance_score,
                             'real_time': True,

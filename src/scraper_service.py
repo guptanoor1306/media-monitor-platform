@@ -174,19 +174,54 @@ class MediaScraperService:
     
     def is_media_business_relevant(self, title: str, description: str) -> bool:
         """Check if content is relevant to media business models"""
+        # Expanded keywords for better content capture
         media_business_keywords = [
-            'business model', 'revenue model', 'monetization', 'subscription',
+            # Business Models
+            'business model', 'revenue model', 'monetization', 'subscription', 'freemium',
             'advertising', 'creator economy', 'influencer marketing', 'brand deals',
             'media company', 'content strategy', 'audience building', 'platform economics',
+            
+            # Digital & Streaming
             'digital transformation', 'streaming', 'podcast monetization', 'youtube',
             'social media business', 'content creation', 'media distribution',
             'user-generated content', 'community building', 'newsletter business',
+            
+            # Platforms & Tools
             'patreon', 'onlyfans', 'substack', 'creator tools', 'media startup',
-            'platform strategy', 'network effects', 'data monetization'
+            'platform strategy', 'network effects', 'data monetization',
+            
+            # Technology & AI
+            'artificial intelligence', 'machine learning', 'ai content', 'automation',
+            'content curation', 'recommendation engine', 'algorithm', 'personalization',
+            
+            # Publishing & Media
+            'publishing', 'journalism', 'newsroom', 'editorial', 'paywall', 'subscription model',
+            'digital media', 'online publishing', 'content marketing', 'seo', 'viral content',
+            
+            # Creator Economy Expansion
+            'creator fund', 'creator program', 'monetize content', 'fan funding',
+            'merchandise', 'brand partnership', 'sponsored content', 'affiliate marketing',
+            
+            # Business & Finance
+            'startup funding', 'venture capital', 'media investment', 'acquisition',
+            'ipo', 'valuation', 'growth metrics', 'user engagement', 'retention',
+            
+            # Emerging trends
+            'nft', 'blockchain media', 'web3', 'metaverse content', 'virtual reality',
+            'augmented reality', 'live streaming', 'interactive content'
         ]
         
         text = f"{title} {description}".lower()
-        return any(keyword in text for keyword in media_business_keywords)
+        # Also check for broader business/tech relevance
+        broad_keywords = ['startup', 'technology', 'innovation', 'digital', 'online', 'internet', 'mobile', 'app']
+        
+        # Primary match for specific media business content
+        specific_match = any(keyword in text for keyword in media_business_keywords)
+        
+        # Secondary match for broader tech/business content that might be relevant
+        broad_match = any(keyword in text for keyword in broad_keywords)
+        
+        return specific_match or broad_match
     
     async def ensure_source_exists(self, name: str, source_data: Dict) -> Source:
         """Ensure source exists in database, create if not"""
