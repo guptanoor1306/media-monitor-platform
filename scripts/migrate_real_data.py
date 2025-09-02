@@ -8,11 +8,14 @@ def migrate_real_data():
     try:
         db = SessionLocal()
         
-        # Clear existing sample data
-        print("🗑️ Clearing sample data...")
-        db.query(Content).delete()
-        db.query(Source).delete()
-        db.commit()
+        # Check if content already exists - DON'T DELETE on production!
+        existing_content = db.query(Content).count()
+        if existing_content >= 100:  # If we have substantial content, skip
+            print(f"✅ Database already has {existing_content} content items - skipping migration")
+            db.close()
+            return {"sources": "skipped", "content": existing_content}
+        
+        print("🔄 Loading additional content data...")
         
         # Load real sources
         print("📁 Loading real sources...")

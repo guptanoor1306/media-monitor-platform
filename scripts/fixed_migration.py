@@ -7,10 +7,14 @@ def fixed_migrate():
     try:
         db = SessionLocal()
         
-        # Clear existing data
-        db.query(Content).delete()
-        db.query(Source).delete()
-        db.commit()
+        # Check if sources already exist - DON'T DELETE on production!
+        existing_sources = db.query(Source).count()
+        if existing_sources > 0:
+            print(f"✅ Database already has {existing_sources} sources - skipping migration")
+            db.close()
+            return {"sources": existing_sources, "content": "skipped"}
+        
+        print("🔄 Database is empty, populating with initial data...")
         
         # Add sources with proper datetime handling
         with open('real_sources.json', 'r') as f:

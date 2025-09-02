@@ -47,26 +47,27 @@ async def startup_event():
         source_count = db.query(Source).count()
         content_count = db.query(Content).count()
         
-        if source_count == 0 or content_count < 50:
-            print("🔄 Database appears empty, auto-populating...")
+        if source_count == 0:
+            print("🔄 Database is completely empty, running initial setup...")
             # Import and run the migration functions
             from scripts.fixed_migration import fixed_migrate
             from scripts.migrate_real_data import migrate_real_data
             
             try:
-                # Populate sources and initial content
+                # Populate sources and initial content (only if empty)
                 print("📊 Loading sources and initial content...")
-                fixed_migrate()
+                result1 = fixed_migrate()
                 
-                # Load all content
-                print("📰 Loading all 400 content items...")
-                migrate_real_data()
+                # Load all content (only if needed)
+                if result1.get("content") != "skipped":
+                    print("📰 Loading content items...")
+                    result2 = migrate_real_data()
                 
-                print("✅ Database auto-population completed!")
+                print("✅ Database setup completed!")
             except Exception as e:
                 print(f"⚠️  Auto-population failed: {e}")
         else:
-            print(f"✅ Database has data: {source_count} sources, {content_count} content items")
+            print(f"✅ Database already populated: {source_count} sources, {content_count} content items")
             
         db.close()
     except Exception as e:

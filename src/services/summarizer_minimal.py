@@ -9,7 +9,7 @@ class SummarizerService:
     def __init__(self):
         # Don't initialize OpenAI client at startup
         self.client = None
-        self.model = "gpt-3.5-turbo"  # Use reliable model that works with legacy API
+        self.model = "gpt-4o-mini"  # Use cost-effective GPT-4 model
         self.max_tokens = 1500
         self.use_legacy_api = False  # Track which API style to use
     

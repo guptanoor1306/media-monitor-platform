@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379"
     
     # OpenAI
-    openai_api_key: Optional[str] = None
+    openai_api_key: Optional[str] = os.getenv("OPENAI_API_KEY")
     openai_model: str = "gpt-4o-mini"
     
     # Twitter
