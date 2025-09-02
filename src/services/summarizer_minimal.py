@@ -31,7 +31,18 @@ class SummarizerService:
                     return False
                 
                 print(f"✅ Initializing OpenAI client with key: {settings.openai_api_key[:10]}...")
-                self.client = OpenAI(api_key=settings.openai_api_key)
+                
+                # Initialize with minimal parameters to avoid version conflicts
+                try:
+                    self.client = OpenAI(api_key=settings.openai_api_key)
+                except TypeError as te:
+                    # Handle version-specific initialization issues
+                    print(f"⚠️  Trying alternative initialization due to: {te}")
+                    import openai
+                    openai.api_key = settings.openai_api_key
+                    self.client = openai
+                    print(f"✅ OpenAI client initialized with legacy method")
+                    return True
                 
                 # Test the client with a simple request
                 test_response = self.client.models.list()
@@ -91,15 +102,32 @@ class SummarizerService:
         """Generate summary using OpenAI."""
         try:
             content_text = "\n".join([f"{c.title}: {c.description}" for c in contents])
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "user", "content": f"{prompt}\n\nContent:\n{content_text}"}
-                ],
-                max_tokens=self.max_tokens
-            )
-            return response.choices[0].message.content.strip()
+            
+            # Try new OpenAI client style first
+            if hasattr(self.client, 'chat') and hasattr(self.client.chat, 'completions'):
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "user", "content": f"{prompt}\n\nContent:\n{content_text}"}
+                    ],
+                    max_tokens=self.max_tokens
+                )
+                return response.choices[0].message.content.strip()
+            
+            # Try legacy OpenAI style (for v1.3.8)
+            else:
+                import openai
+                response = openai.ChatCompletion.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "user", "content": f"{prompt}\n\nContent:\n{content_text}"}
+                    ],
+                    max_tokens=self.max_tokens
+                )
+                return response.choices[0].message.content.strip()
+                
         except Exception as e:
+            print(f"🔧 OpenAI API call failed: {e}")
             return self._generate_fallback_summary(contents, prompt)
     
     def _generate_fallback_summary(self, contents: List[Content], prompt: str) -> str:
