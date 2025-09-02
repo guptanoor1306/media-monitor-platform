@@ -402,11 +402,68 @@ async def scrape_source_realtime(source_id: int, db: Session = Depends(get_db)):
 async def summarize_content(request: SummaryRequest):
     """Generate AI summary of selected content."""
     try:
-        summary = summarizer_service.summarize_content(
-            content_ids=request.content_ids,
-            prompt=request.prompt
-        )
-        return summary
+        # Filter out locked/premium content before summarization
+        from src.database import SessionLocal
+        from src.models import Content
+        
+        db = SessionLocal()
+        try:
+            # Get all requested content
+            contents = db.query(Content).filter(Content.id.in_(request.content_ids)).all()
+            
+            # Filter out premium/restricted content
+            filtered_ids = []
+            excluded_count = 0
+            
+            for content in contents:
+                engagement_metrics = content.engagement_metrics or {}
+                is_premium = engagement_metrics.get('is_premium', False)
+                requires_visit = engagement_metrics.get('requires_visit_source', False)
+                
+                # Check URL and description for premium indicators
+                url = content.content_url or ''
+                description = content.description or ''
+                title = content.title or ''
+                
+                is_restricted = (
+                    is_premium or requires_visit or
+                    '/premium/' in url or '/subscriber/' in url or
+                    'economictimes.indiatimes.com/prime/' in url or
+                    'businessinsider.com/prime/' in url or
+                    any(indicator in (title + description).lower() 
+                        for indicator in ['paywall', 'subscription required', 'login required', 'members only'])
+                )
+                
+                if not is_restricted:
+                    filtered_ids.append(content.id)
+                else:
+                    excluded_count += 1
+            
+            if not filtered_ids:
+                raise HTTPException(status_code=400, 
+                    detail=f"All {len(request.content_ids)} selected articles are premium/restricted and cannot be analyzed. Please select free articles for AI summarization.")
+            
+            if excluded_count > 0:
+                print(f"📝 Excluded {excluded_count} premium articles from AI analysis")
+            
+            # Use filtered content IDs for summarization
+            summary = summarizer_service.summarize_content(
+                content_ids=filtered_ids,
+                prompt=request.prompt
+            )
+            
+            # Add metadata about filtering
+            if hasattr(summary, 'summary_text'):
+                if excluded_count > 0:
+                    summary.summary_text = f"*Note: {excluded_count} premium/restricted articles were excluded from this analysis.*\n\n" + summary.summary_text
+            
+            return summary
+            
+        finally:
+            db.close()
+            
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Summarization failed: {str(e)}")
 

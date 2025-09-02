@@ -407,24 +407,35 @@
             const description = item.description || '';
             const title = item.title || '';
             
-            // Check for paywall/premium indicators
+            // Check scraper-detected premium flags first (from new enhancement)
+            const engagement_metrics = item.engagement_metrics || {};
+            if (engagement_metrics.is_premium || engagement_metrics.requires_visit_source) {
+                return true;
+            }
+            
+            // Legacy manual checks for paywall/premium indicators
             return (
                 url.includes('theinformation.com') ||
                 url.includes('/premium/') ||
                 url.includes('/subscriber/') ||
+                url.includes('economictimes.indiatimes.com/prime/') ||
+                url.includes('reddit.com/r/') && (title.includes('[Premium]') || description.includes('premium content')) ||
                 description.toLowerCase().includes('subscription') ||
                 description.toLowerCase().includes('premium') ||
                 description.toLowerCase().includes('sign up') ||
                 description.toLowerCase().includes('subscribe') ||
                 description.toLowerCase().includes('login required') ||
                 description.toLowerCase().includes('paywall') ||
+                description.toLowerCase().includes('members only') ||
                 title.toLowerCase().includes('[premium]') ||
                 title.toLowerCase().includes('[subscriber]') ||
+                title.toLowerCase().includes('(premium)') ||
                 (description.length < 50 && description.toLowerCase().includes('subscribe')) ||
                 // Common paywall domains
                 url.includes('ft.com/content/') ||
                 url.includes('wsj.com/articles/') ||
                 url.includes('bloomberg.com/news/') ||
+                url.includes('businessinsider.com/prime/') ||
                 url.includes('economist.com/') ||
                 // Check for truncated descriptions ending with subscription prompts
                 description.toLowerCase().includes('read more with subscription') ||
@@ -472,7 +483,12 @@
                                 </span>
                                 ${isRestricted ? `
                                     <span class="inline-flex items-center px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full font-medium">
-                                        🔒 Restricted Access
+                                        ${item.engagement_metrics?.is_podcast ? '🎧 Podcast' : '🔒 Premium'}
+                                    </span>
+                                ` : ''}
+                                ${item.engagement_metrics?.is_podcast && !isRestricted ? `
+                                    <span class="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">
+                                        🎧 Podcast
                                     </span>
                                 ` : ''}
                             </div>
@@ -505,7 +521,10 @@
                             </div>
                             ${item.content_url ? `
                                 <a href="${item.content_url}" target="_blank" class="${isRestricted ? 'text-orange-600 hover:text-orange-800' : 'text-purple-600 hover:text-purple-800'} text-sm font-medium flex items-center gap-1">
-                                    ${isRestricted ? '🔗 Visit Source (Login Required)' : '📖 Read Full Article'}
+                                    ${isRestricted ? 
+                                        (item.engagement_metrics?.is_podcast ? '🎧 Listen on Source Platform' : '🔗 Visit Source (Login Required)') : 
+                                        (item.engagement_metrics?.is_podcast ? '🎧 Listen to Episode' : '📖 Read Full Article')
+                                    }
                                 </a>
                             ` : ''}
                         </div>
