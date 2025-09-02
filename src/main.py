@@ -112,7 +112,7 @@ async def delete_source(source_id: int, db: Session = Depends(get_db)):
 @app.get("/api/content", response_model=List[ContentResponse])
 async def get_content(
     source_id: Optional[int] = Query(None, description="Filter by source ID"),
-    limit: int = Query(50, description="Number of items to return"),
+    limit: int = Query(500, description="Number of items to return"),
     offset: int = Query(0, description="Number of items to skip"),
     db: Session = Depends(get_db)
 ):
@@ -507,6 +507,71 @@ async def fixed_migrate_endpoint():
         from scripts.fixed_migration import fixed_migrate
         result = fixed_migrate()
         return {"status": "success", "data": result}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.get("/migrate-all-content")
+async def migrate_all_content_endpoint():
+    """Load all 401 content items from real_content.json"""
+    try:
+        import json
+        from datetime import datetime
+        from src.database import SessionLocal
+        from src.models import Content
+        
+        db = SessionLocal()
+        
+        # Clear existing content (keep sources)
+        db.query(Content).delete()
+        db.commit()
+        
+        # Load all content from real_content.json
+        with open('real_content.json', 'r') as f:
+            contents_data = json.load(f)
+        
+        successful_imports = 0
+        failed_imports = 0
+        
+        for content_data in contents_data:  # Load ALL items, not just first 50
+            try:
+                # Clean and validate content data
+                clean_content = {
+                    'title': content_data.get('title', 'Untitled'),
+                    'description': content_data.get('description'),
+                    'content_url': content_data.get('content_url'),
+                    'source_id': content_data.get('source_id', 1),
+                    'author': content_data.get('author'),
+                    'published_at': datetime.now(),  # Use current time for simplicity
+                    'tags': content_data.get('tags') if content_data.get('tags') else []
+                }
+                
+                # Skip items with no title or invalid source_id
+                if not clean_content['title'] or clean_content['title'] == 'Page not found.':
+                    failed_imports += 1
+                    continue
+                    
+                content = Content(**clean_content)
+                db.add(content)
+                successful_imports += 1
+                
+            except Exception as e:
+                print(f"Failed to import item: {e}")
+                failed_imports += 1
+                continue
+        
+        db.commit()
+        db.close()
+        
+        return {
+            "status": "success", 
+            "data": {
+                "total_items_processed": len(contents_data),
+                "successful_imports": successful_imports,
+                "failed_imports": failed_imports,
+                "message": f"Successfully loaded {successful_imports} content items!"
+            }
+        }
     except Exception as e:
         return {"status": "error", "message": str(e)}
 

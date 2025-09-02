@@ -259,7 +259,7 @@
                 
                 // Load content and sources in parallel
                 const [contentResponse, sourcesResponse] = await Promise.all([
-                    fetch('/api/content?limit=500'),
+                    fetch('/api/content?limit=1000'),
                     fetch('/api/sources')
                 ]);
                 

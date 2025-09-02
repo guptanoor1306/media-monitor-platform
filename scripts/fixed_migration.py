@@ -36,7 +36,7 @@ def fixed_migrate():
         with open('real_content.json', 'r') as f:
             contents_data = json.load(f)
             
-        for content_data in contents_data[:50]:  # Start with first 50 items
+        for content_data in contents_data:  # Load ALL 401 items
             clean_content = {
                 'title': content_data.get('title'),
                 'description': content_data.get('description'),
