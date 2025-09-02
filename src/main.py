@@ -440,3 +440,49 @@ async def populate_database_endpoint():
         return {"status": "success", "data": result}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+@app.get("/populate-data")
+async def populate_data():
+    """Add sample data to empty database"""
+    try:
+        from src.database import SessionLocal
+        from src.models import Source, Content
+        from datetime import datetime
+        
+        db = SessionLocal()
+        
+        # Check if data already exists
+        existing_content = db.query(Content).count()
+        if existing_content > 0:
+            return {"message": f"Database already has {existing_content} items"}
+        
+        # Add sources
+        sources = [
+            Source(name="TechCrunch", url="https://techcrunch.com", source_type="media", is_active=True),
+            Source(name="Creator Report", url="https://creator.com", source_type="creator", is_active=True),
+            Source(name="Business News", url="https://business.com", source_type="business_models", is_active=True),
+            Source(name="Podcast Hub", url="https://podcast.com", source_type="podcasts", is_active=True)
+        ]
+        for source in sources:
+            db.add(source)
+        db.commit()
+        
+        # Add your actual content titles
+        contents = [
+            Content(title="Everything Mark Zuckerberg has gotten from Donald Trump so far", description="Meta CEO and political developments analysis", content_url="https://example.com/1", source_id=1, published_at=datetime.now()),
+            Content(title="A ChatGPT tragedy is only the beginning", description="AI implications and societal impact", content_url="https://example.com/2", source_id=1, published_at=datetime.now()),
+            Content(title="Musk sues over Grok flop", description="Legal challenges with AI chatbot", content_url="https://example.com/3", source_id=1, published_at=datetime.now()),
+            Content(title="Creator Economy Hits $104 Billion", description="Record growth in creator platforms", content_url="https://example.com/4", source_id=2, published_at=datetime.now()),
+            Content(title="Subscription Business Models in 2024", description="Analysis of subscription strategies", content_url="https://example.com/5", source_id=3, published_at=datetime.now()),
+            Content(title="The Future of Podcast Monetization", description="New revenue streams for creators", content_url="https://example.com/6", source_id=4, published_at=datetime.now())
+        ]
+        for content in contents:
+            db.add(content)
+        db.commit()
+        db.close()
+        
+        return {"success": True, "sources": 4, "content": 6}
+    except Exception as e:
+        return {"error": str(e)}
+
