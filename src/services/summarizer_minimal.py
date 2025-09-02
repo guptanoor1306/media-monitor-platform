@@ -33,21 +33,40 @@ class SummarizerService:
                 
                 print(f"✅ Initializing OpenAI client with key: {settings.openai_api_key[:10]}...")
                 
-                # Use OpenAI v1.3.8 with proper client initialization
+                # Use OpenAI v1.3.8 with minimal initialization to avoid parameter conflicts
                 print(f"🔄 Using OpenAI v1.3.8 client...")
-                from openai import OpenAI
-                self.client = OpenAI(api_key=settings.openai_api_key)
-                self.use_legacy_api = False
-                print(f"✅ OpenAI v1.3.8 client initialized successfully")
+                try:
+                    from openai import OpenAI
+                    # Try with minimal parameters first
+                    self.client = OpenAI(api_key=settings.openai_api_key)
+                    self.use_legacy_api = False
+                    print(f"✅ OpenAI v1.3.8 client initialized successfully")
+                except TypeError as init_error:
+                    # Fall back to even simpler initialization
+                    print(f"⚠️  Standard init failed: {init_error}, trying alternative...")
+                    import openai
+                    openai.api_key = settings.openai_api_key
+                    self.client = openai
+                    self.use_legacy_api = True
+                    print(f"✅ OpenAI client initialized with alternative method")
                 
                 # Test with a simple API call to verify it's working
                 try:
                     print(f"🧪 Testing OpenAI connection...")
-                    test_response = self.client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=[{"role": "user", "content": "Hello"}],
-                        max_tokens=5
-                    )
+                    if self.use_legacy_api:
+                        # Use legacy style for v1.3.8 fallback
+                        test_response = self.client.ChatCompletion.create(
+                            model="gpt-4o-mini",
+                            messages=[{"role": "user", "content": "Hello"}],
+                            max_tokens=5
+                        )
+                    else:
+                        # Use new client style
+                        test_response = self.client.chat.completions.create(
+                            model="gpt-4o-mini",
+                            messages=[{"role": "user", "content": "Hello"}],
+                            max_tokens=5
+                        )
                     print(f"✅ OpenAI connection test successful!")
                     return True
                 except Exception as test_error:
@@ -143,17 +162,29 @@ class SummarizerService:
             print(f"🔍 DEBUG: Content length: {len(content_text)}")
             print(f"🔍 DEBUG: Max tokens: {self.max_tokens}")
             
-            # Use OpenAI v1.3.8 client API
-            print(f"🔄 Using OpenAI v1.3.8 API call...")
+            # Use appropriate API style based on client type
+            print(f"🔄 Using OpenAI API call (legacy: {self.use_legacy_api})...")
             print(f"🔄 Making request to model: {self.model}")
             
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "user", "content": f"{prompt}\n\nContent:\n{content_text}"}
-                ],
-                max_tokens=self.max_tokens
-            )
+            if self.use_legacy_api:
+                # Use legacy ChatCompletion.create for v1.3.8 fallback
+                response = self.client.ChatCompletion.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "user", "content": f"{prompt}\n\nContent:\n{content_text}"}
+                    ],
+                    max_tokens=self.max_tokens
+                )
+            else:
+                # Use new client style
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "user", "content": f"{prompt}\n\nContent:\n{content_text}"}
+                    ],
+                    max_tokens=self.max_tokens
+                )
+            
             print(f"✅ OpenAI API call successful")
             print(f"🔍 Response type: {type(response)}")
             print(f"🔍 Response choices length: {len(response.choices)}")
