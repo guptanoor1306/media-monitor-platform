@@ -9,7 +9,7 @@ class SummarizerService:
     def __init__(self):
         # Don't initialize OpenAI client at startup
         self.client = None
-        self.model = "gpt-4o-mini"  # Upgraded to GPT-4o-mini for better performance
+        self.model = "gpt-3.5-turbo"  # Use reliable model that works with legacy API
         self.max_tokens = 1500
         self.use_legacy_api = False  # Track which API style to use
     
@@ -72,10 +72,18 @@ class SummarizerService:
                 raise ValueError("No content found for the provided IDs")
             
             # Try to use OpenAI, fallback to simple summary
+            print(f"🔍 Attempting OpenAI initialization...")
             if self._init_client():
                 print(f"🤖 OpenAI client initialized successfully, generating AI summary...")
+                print(f"🔧 Using model: {self.model}, Legacy API: {self.use_legacy_api}")
                 summary_text = self._generate_ai_summary(contents, prompt)
                 print(f"📝 Summary generated: {len(summary_text)} characters")
+                
+                # Check if we got a real AI response or fallback
+                if "OpenAI unavailable" not in summary_text:
+                    print(f"✅ REAL AI SUMMARY GENERATED!")
+                else:
+                    print(f"⚠️  Still got fallback despite initialization")
             else:
                 print(f"❌ OpenAI client failed to initialize, using fallback...")
                 summary_text = self._generate_fallback_summary(contents, prompt)

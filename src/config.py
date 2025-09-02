@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     
     # OpenAI
     openai_api_key: Optional[str] = None
-    openai_model: str = "gpt-3.5-turbo"
+    openai_model: str = "gpt-4o-mini"
     
     # Twitter
     twitter_api_key: Optional[str] = None
