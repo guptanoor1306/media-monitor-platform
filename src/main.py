@@ -130,12 +130,25 @@ async def scrape_status():
         yesterday = datetime.now() - timedelta(days=1)
         recent_content = db.query(Content).filter(Content.created_at >= yesterday).count()
         
+        # Get most recent content items
+        latest_content = db.query(Content).order_by(Content.created_at.desc()).limit(5).all()
+        latest_items = [
+            {
+                "id": item.id,
+                "title": item.title[:50] + "..." if len(item.title) > 50 else item.title,
+                "created_at": item.created_at.isoformat() if item.created_at else "Unknown",
+                "source_id": item.source_id
+            }
+            for item in latest_content
+        ]
+        
         db.close()
         
         return {
             "total_content": content_count,
             "total_sources": source_count,
             "recent_content_24h": recent_content,
+            "latest_items": latest_items,
             "last_check": datetime.now().isoformat(),
             "status": "active"
         }
@@ -143,6 +156,60 @@ async def scrape_status():
     except Exception as e:
         return {
             "status": "error",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+@app.get("/api/debug/content-sync")
+async def debug_content_sync():
+    """Debug endpoint to check content synchronization."""
+    try:
+        from src.database import SessionLocal
+        from src.models import Source, Content
+        
+        db = SessionLocal()
+        
+        # Get comprehensive stats
+        total_content = db.query(Content).count()
+        total_sources = db.query(Source).count()
+        
+        # Get content by source
+        from sqlalchemy import func
+        content_by_source = db.query(
+            Source.name, 
+            func.count(Content.id).label('content_count')
+        ).outerjoin(Content, Source.id == Content.source_id).group_by(Source.id, Source.name).all()
+        
+        # Get recent content (last 3 days)
+        from datetime import datetime, timedelta
+        three_days_ago = datetime.now() - timedelta(days=3)
+        recent_items = db.query(Content).filter(Content.created_at >= three_days_ago).order_by(Content.created_at.desc()).limit(10).all()
+        
+        recent_list = [
+            {
+                "id": item.id,
+                "title": item.title,
+                "created_at": item.created_at.isoformat() if item.created_at else "Unknown",
+                "source_id": item.source_id,
+                "engagement_metrics": item.engagement_metrics
+            }
+            for item in recent_items
+        ]
+        
+        db.close()
+        
+        return {
+            "database_stats": {
+                "total_content": total_content,
+                "total_sources": total_sources,
+                "content_by_source": [{"source": name, "count": count} for name, count in content_by_source]
+            },
+            "recent_content_3days": recent_list,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        return {
             "error": str(e),
             "timestamp": datetime.now().isoformat()
         }
