@@ -82,13 +82,16 @@ async def health_check():
 async def debug_openai():
     """Debug endpoint to check OpenAI configuration."""
     from src.config import settings
+    import os
     
     debug_info = {
         "api_key_exists": bool(settings.openai_api_key),
         "api_key_length": len(settings.openai_api_key) if settings.openai_api_key else 0,
         "api_key_starts_with_sk": settings.openai_api_key.startswith('sk-') if settings.openai_api_key else False,
         "api_key_preview": settings.openai_api_key[:10] + "..." if settings.openai_api_key else "None",
-        "model": settings.openai_model
+        "model": settings.openai_model,
+        "env_var_exists": bool(os.getenv("OPENAI_API_KEY")),
+        "env_var_preview": os.getenv("OPENAI_API_KEY", "None")[:10] + "..." if os.getenv("OPENAI_API_KEY") else "None"
     }
     
     # Test OpenAI client initialization with the same logic as summarizer
@@ -113,6 +116,16 @@ async def debug_openai():
     except Exception as e:
         debug_info["openai_test"] = f"❌ Error: {str(e)}"
         debug_info["error_type"] = type(e).__name__
+    
+    # Test the actual summarizer service
+    try:
+        from src.services.summarizer_minimal import SummarizerService
+        summarizer = SummarizerService()
+        init_result = summarizer._init_client()
+        debug_info["summarizer_init"] = "✅ Success" if init_result else "❌ Failed"
+        debug_info["summarizer_client_type"] = "legacy" if summarizer.use_legacy_api else "new"
+    except Exception as e:
+        debug_info["summarizer_error"] = str(e)
     
     return debug_info
 
