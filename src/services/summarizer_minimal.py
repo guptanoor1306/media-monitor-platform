@@ -86,15 +86,23 @@ class SummarizerService:
             
         except Exception as e:
             print(f"Error summarizing content: {e}")
-            # Return minimal summary on error
-            summary = Summary(
-                content_id=content_ids[0] if content_ids else 0,
-                prompt=prompt,
-                summary_text=f"Summary generation failed: {str(e)}",
-                ai_model="fallback",
-                tokens_used=0
-            )
-            return summary
+            # Return minimal summary on error and save to database
+            try:
+                summary = Summary(
+                    content_id=content_ids[0] if content_ids else 1,  # Use valid content_id
+                    prompt=prompt,
+                    summary_text=f"📋 **Summary Generation Error**\n\n**Error:** {str(e)}\n\n**Prompt:** {prompt}\n\n💡 *This usually means the content IDs don't exist. Try selecting different articles.*",
+                    ai_model="error-fallback",
+                    tokens_used=0
+                )
+                db.add(summary)
+                db.commit()
+                db.refresh(summary)
+                return summary
+            except Exception as db_error:
+                print(f"Database error in fallback: {db_error}")
+                # If even the error summary fails, raise the original error
+                raise e
         finally:
             db.close()
     
