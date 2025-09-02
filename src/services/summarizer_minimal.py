@@ -47,9 +47,12 @@ class SummarizerService:
                     print(f"✅ OpenAI client initialized with legacy method")
                     return True
                 
-                # Test the client with a simple request
-                test_response = self.client.models.list()
-                print(f"✅ OpenAI client successfully initialized and tested")
+                # Test the client with a simple request (only for new style)
+                if not self.use_legacy_api:
+                    test_response = self.client.models.list()
+                    print(f"✅ OpenAI client successfully initialized and tested")
+                else:
+                    print(f"✅ OpenAI legacy client initialized (skipping test)")
                 return True
                 
             except Exception as e:
