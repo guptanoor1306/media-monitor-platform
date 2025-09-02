@@ -80,30 +80,42 @@ class SummarizerService:
             if not contents:
                 raise ValueError("No content found for the provided IDs")
             
-            # Try to use OpenAI, fallback to simple summary
-            print(f"🔍 Attempting OpenAI initialization...")
-            init_success = self._init_client()
-            print(f"🔍 Client initialization result: {init_success}")
-            print(f"🔍 Client object: {self.client}")
+            # Force OpenAI to work - no more fallbacks until we know why it fails
+            print(f"🔍 FORCING OpenAI initialization...")
             
-            if init_success:
-                print(f"🤖 OpenAI client initialized successfully, generating AI summary...")
-                print(f"🔧 Using model: {self.model}")
+            # Manual API key verification
+            from src.config import settings
+            print(f"🔑 API Key exists: {bool(settings.openai_api_key)}")
+            print(f"🔑 API Key format: {settings.openai_api_key[:15]}..." if settings.openai_api_key else "None")
+            print(f"🔑 API Key length: {len(settings.openai_api_key) if settings.openai_api_key else 0}")
+            
+            # Force initialization with maximum debugging
+            try:
+                from openai import OpenAI
+                print(f"🔄 Creating OpenAI client...")
+                self.client = OpenAI(api_key=settings.openai_api_key)
+                print(f"✅ Client created successfully")
                 
-                try:
-                    summary_text = self._generate_ai_summary(contents, prompt)
-                    print(f"📝 Summary generated: {len(summary_text)} characters")
-                    
-                    # Check if we got a real AI response or fallback
-                    if "OpenAI unavailable" not in summary_text:
-                        print(f"✅ REAL AI SUMMARY GENERATED!")
-                    else:
-                        print(f"⚠️  Still got fallback despite initialization")
-                except Exception as ai_error:
-                    print(f"❌ AI summary generation failed: {ai_error}")
-                    summary_text = self._generate_fallback_summary(contents, prompt)
-            else:
-                print(f"❌ OpenAI client failed to initialize, using fallback...")
+                # FORCE a test call - no excuses
+                print(f"🧪 FORCING test API call...")
+                test_response = self.client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": "Test"}],
+                    max_tokens=10
+                )
+                print(f"✅ TEST API CALL SUCCESSFUL!")
+                print(f"🔍 Test response: {test_response.choices[0].message.content}")
+                
+                # Now do the real summary
+                print(f"🔄 Generating REAL AI summary...")
+                summary_text = self._generate_ai_summary(contents, prompt)
+                print(f"✅ AI SUMMARY COMPLETE: {len(summary_text)} chars")
+                
+            except Exception as force_error:
+                print(f"💥 FORCED TEST FAILED: {force_error}")
+                print(f"💥 Error type: {type(force_error).__name__}")
+                print(f"💥 Full error: {str(force_error)}")
+                # Only NOW use fallback
                 summary_text = self._generate_fallback_summary(contents, prompt)
             
             # Create summary record
