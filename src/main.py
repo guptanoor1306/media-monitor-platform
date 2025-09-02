@@ -97,11 +97,11 @@ async def debug_openai():
     # Test OpenAI client initialization with the same logic as summarizer
     try:
         if settings.openai_api_key:
-            # Use legacy API style for v1.3.8 compatibility
-            import openai
-            openai.api_key = settings.openai_api_key
-            debug_info["client_style"] = "legacy_v1.3.8"
-            debug_info["openai_test"] = "✅ Legacy v1.3.8 initialized"
+            # Use OpenAI v1.3.8 client style
+            from openai import OpenAI
+            client = OpenAI(api_key=settings.openai_api_key)
+            debug_info["client_style"] = "v1.3.8_client"
+            debug_info["openai_test"] = "✅ OpenAI v1.3.8 client initialized"
         else:
             debug_info["openai_test"] = "❌ No API key"
     except Exception as e:
@@ -114,7 +114,7 @@ async def debug_openai():
         summarizer = SummarizerService()
         init_result = summarizer._init_client()
         debug_info["summarizer_init"] = "✅ Success" if init_result else "❌ Failed"
-        debug_info["summarizer_client_type"] = "legacy" if summarizer.use_legacy_api else "new"
+        debug_info["summarizer_client_type"] = "v1.3.8_client"
     except Exception as e:
         debug_info["summarizer_error"] = str(e)
     

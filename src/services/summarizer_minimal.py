@@ -33,13 +33,12 @@ class SummarizerService:
                 
                 print(f"✅ Initializing OpenAI client with key: {settings.openai_api_key[:10]}...")
                 
-                # Use legacy API style for v1.3.8 compatibility
-                print(f"🔄 Using OpenAI v1.3.8 legacy API...")
-                import openai
-                openai.api_key = settings.openai_api_key
-                self.client = openai
-                self.use_legacy_api = True
-                print(f"✅ OpenAI legacy client initialized successfully")
+                # Use OpenAI v1.3.8 with proper client initialization
+                print(f"🔄 Using OpenAI v1.3.8 client...")
+                from openai import OpenAI
+                self.client = OpenAI(api_key=settings.openai_api_key)
+                self.use_legacy_api = False
+                print(f"✅ OpenAI v1.3.8 client initialized successfully")
                 
                 # Skip testing and just return success - testing can fail due to network/auth
                 print(f"✅ OpenAI client initialized successfully (skipping test for reliability)")
@@ -118,36 +117,21 @@ class SummarizerService:
         try:
             content_text = "\n".join([f"{c.title}: {c.description}" for c in contents])
             
-            # Use the appropriate API style based on initialization
-            if self.use_legacy_api:
-                print(f"🔄 Using legacy OpenAI API call...")
-                # Use legacy OpenAI API style (for v1.3.8)
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[
-                        {"role": "user", "content": f"{prompt}\n\nContent:\n{content_text}"}
-                    ],
-                    max_tokens=self.max_tokens
-                )
-                print(f"✅ Legacy API call successful")
-                return response.choices[0].message.content.strip()
-            else:
-                print(f"🔄 Using new OpenAI API call...")
-                # Use new OpenAI client style
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[
-                        {"role": "user", "content": f"{prompt}\n\nContent:\n{content_text}"}
-                    ],
-                    max_tokens=self.max_tokens
-                )
-                print(f"✅ New API call successful")
-                return response.choices[0].message.content.strip()
+            # Use OpenAI v1.3.8 client API
+            print(f"🔄 Using OpenAI v1.3.8 API call...")
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "user", "content": f"{prompt}\n\nContent:\n{content_text}"}
+                ],
+                max_tokens=self.max_tokens
+            )
+            print(f"✅ OpenAI API call successful")
+            return response.choices[0].message.content.strip()
                 
         except Exception as e:
             print(f"🔧 OpenAI API call failed: {e}")
             print(f"🔧 Error type: {type(e).__name__}")
-            print(f"🔧 Use legacy API: {self.use_legacy_api}")
             
             # Log the actual API key status for debugging
             from src.config import settings
