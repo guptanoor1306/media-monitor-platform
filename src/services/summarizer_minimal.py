@@ -11,7 +11,6 @@ class SummarizerService:
         self.client = None
         self.model = "gpt-4o-mini"  # Use cost-effective GPT-4 model
         self.max_tokens = 1500
-        self.use_legacy_api = False  # Track which API style to use
     
     def _init_client(self):
         """Initialize OpenAI client only when needed."""
@@ -39,34 +38,26 @@ class SummarizerService:
                     from openai import OpenAI
                     # Try with minimal parameters first
                     self.client = OpenAI(api_key=settings.openai_api_key)
-                    self.use_legacy_api = False
                     print(f"✅ OpenAI v1.3.8 client initialized successfully")
                 except TypeError as init_error:
-                    # Fall back to even simpler initialization
-                    print(f"⚠️  Standard init failed: {init_error}, trying alternative...")
-                    import openai
-                    openai.api_key = settings.openai_api_key
-                    self.client = openai
-                    self.use_legacy_api = True
-                    print(f"✅ OpenAI client initialized with alternative method")
+                    # The issue is with initialization parameters, not API version
+                    # Try basic OpenAI client without extra parameters
+                    print(f"⚠️  Standard init failed: {init_error}, trying minimal init...")
+                    import os
+                    os.environ["OPENAI_API_KEY"] = settings.openai_api_key
+                    from openai import OpenAI
+                    self.client = OpenAI()  # Let it read from environment
+                    print(f"✅ OpenAI client initialized with minimal parameters")
                 
                 # Test with a simple API call to verify it's working
                 try:
                     print(f"🧪 Testing OpenAI connection...")
-                    if self.use_legacy_api:
-                        # Use legacy style for v1.3.8 fallback
-                        test_response = self.client.ChatCompletion.create(
-                            model="gpt-4o-mini",
-                            messages=[{"role": "user", "content": "Hello"}],
-                            max_tokens=5
-                        )
-                    else:
-                        # Use new client style
-                        test_response = self.client.chat.completions.create(
-                            model="gpt-4o-mini",
-                            messages=[{"role": "user", "content": "Hello"}],
-                            max_tokens=5
-                        )
+                    # Always use v1.x API (ChatCompletion was removed in v1.0+)
+                    test_response = self.client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[{"role": "user", "content": "Hello"}],
+                        max_tokens=5
+                    )
                     print(f"✅ OpenAI connection test successful!")
                     return True
                 except Exception as test_error:
@@ -162,28 +153,17 @@ class SummarizerService:
             print(f"🔍 DEBUG: Content length: {len(content_text)}")
             print(f"🔍 DEBUG: Max tokens: {self.max_tokens}")
             
-            # Use appropriate API style based on client type
-            print(f"🔄 Using OpenAI API call (legacy: {self.use_legacy_api})...")
+            # Use OpenAI v1.x API (ChatCompletion was removed in v1.0+)
+            print(f"🔄 Using OpenAI v1.x API call...")
             print(f"🔄 Making request to model: {self.model}")
             
-            if self.use_legacy_api:
-                # Use legacy ChatCompletion.create for v1.3.8 fallback
-                response = self.client.ChatCompletion.create(
-                    model=self.model,
-                    messages=[
-                        {"role": "user", "content": f"{prompt}\n\nContent:\n{content_text}"}
-                    ],
-                    max_tokens=self.max_tokens
-                )
-            else:
-                # Use new client style
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[
-                        {"role": "user", "content": f"{prompt}\n\nContent:\n{content_text}"}
-                    ],
-                    max_tokens=self.max_tokens
-                )
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "user", "content": f"{prompt}\n\nContent:\n{content_text}"}
+                ],
+                max_tokens=self.max_tokens
+            )
             
             print(f"✅ OpenAI API call successful")
             print(f"🔍 Response type: {type(response)}")
