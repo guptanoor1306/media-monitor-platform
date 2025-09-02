@@ -43,6 +43,34 @@ async def startup_event():
 async def health_check():
     return {"status": "healthy", "service": "Media Monitor Platform"}
 
+@app.get("/debug/openai")
+async def debug_openai():
+    """Debug endpoint to check OpenAI configuration."""
+    from src.config import settings
+    
+    debug_info = {
+        "api_key_exists": bool(settings.openai_api_key),
+        "api_key_length": len(settings.openai_api_key) if settings.openai_api_key else 0,
+        "api_key_starts_with_sk": settings.openai_api_key.startswith('sk-') if settings.openai_api_key else False,
+        "api_key_preview": settings.openai_api_key[:10] + "..." if settings.openai_api_key else "None",
+        "model": settings.openai_model
+    }
+    
+    # Test OpenAI client initialization
+    try:
+        if settings.openai_api_key:
+            from openai import OpenAI
+            client = OpenAI(api_key=settings.openai_api_key)
+            models = client.models.list()
+            debug_info["openai_test"] = "✅ Success"
+            debug_info["available_models_count"] = len(models.data)
+        else:
+            debug_info["openai_test"] = "❌ No API key"
+    except Exception as e:
+        debug_info["openai_test"] = f"❌ Error: {str(e)}"
+    
+    return debug_info
+
 # API Endpoints
 
 @app.get("/", response_class=HTMLResponse)

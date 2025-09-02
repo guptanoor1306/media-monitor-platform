@@ -18,9 +18,29 @@ class SummarizerService:
             try:
                 from openai import OpenAI
                 from src.config import settings
+                
+                # Check if API key is available
+                if not settings.openai_api_key:
+                    print("❌ OpenAI API key not found in environment variables")
+                    print("💡 Set OPENAI_API_KEY in your Render environment variables")
+                    return False
+                
+                if not settings.openai_api_key.startswith('sk-'):
+                    print(f"❌ Invalid OpenAI API key format: {settings.openai_api_key[:10]}...")
+                    print("💡 OpenAI API keys should start with 'sk-'")
+                    return False
+                
+                print(f"✅ Initializing OpenAI client with key: {settings.openai_api_key[:10]}...")
                 self.client = OpenAI(api_key=settings.openai_api_key)
+                
+                # Test the client with a simple request
+                test_response = self.client.models.list()
+                print(f"✅ OpenAI client successfully initialized and tested")
+                return True
+                
             except Exception as e:
-                print(f"OpenAI client initialization failed: {e}")
+                print(f"❌ OpenAI client initialization failed: {e}")
+                print(f"🔧 Error type: {type(e).__name__}")
                 return False
         return True
     

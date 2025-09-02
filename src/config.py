@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379"
     
     # OpenAI
-    openai_api_key: str
+    openai_api_key: Optional[str] = None
     openai_model: str = "gpt-3.5-turbo"
     
     # Twitter
