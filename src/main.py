@@ -206,6 +206,54 @@ async def debug_content_sync():
             "timestamp": datetime.now().isoformat()
         }
 
+@app.get("/api/debug/podcast-data")
+async def debug_podcast_data():
+    """Debug endpoint to check podcast data structure."""
+    try:
+        from src.database import SessionLocal
+        from src.models import Source, Content
+        
+        db = SessionLocal()
+        
+        # Get podcast sources
+        podcast_sources = db.query(Source).filter(Source.source_type == 'podcast').all()
+        
+        result = {
+            "podcast_sources": [
+                {
+                    "id": s.id,
+                    "name": s.name,
+                    "source_type": s.source_type,
+                    "url": s.url
+                }
+                for s in podcast_sources
+            ],
+            "sample_content": []
+        }
+        
+        # Get sample content from podcast sources
+        if podcast_sources:
+            sample_content = db.query(Content).filter(
+                Content.source_id.in_([s.id for s in podcast_sources])
+            ).limit(5).all()
+            
+            result["sample_content"] = [
+                {
+                    "id": c.id,
+                    "title": c.title[:50] + "..." if len(c.title) > 50 else c.title,
+                    "source_id": c.source_id,
+                    "engagement_metrics": c.engagement_metrics,
+                    "content_url": c.content_url
+                }
+                for c in sample_content
+            ]
+        
+        db.close()
+        return result
+        
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.get("/debug/openai")
 async def debug_openai():
     """Debug endpoint to check OpenAI configuration."""
