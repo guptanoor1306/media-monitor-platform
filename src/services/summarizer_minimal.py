@@ -83,7 +83,25 @@ class SummarizerService:
             return self._generate_fallback_summary(contents, prompt)
     
     def _generate_fallback_summary(self, contents: List[Content], prompt: str) -> str:
-        """Generate simple fallback summary."""
-        titles = [c.title for c in contents]
-        return f"Summary based on prompt: {prompt}\n\nAnalyzed {len(contents)} content items:\n" + \
-               "\n".join([f"{i+1}. {title}" for i, title in enumerate(titles)])
+        """Generate enhanced fallback summary with descriptions."""
+        summary_parts = [
+            f"📊 **Analysis Summary** (OpenAI unavailable - using fallback)",
+            f"**Prompt:** {prompt}",
+            f"**Articles Analyzed:** {len(contents)}",
+            "",
+            "**Key Articles:**"
+        ]
+        
+        for i, content in enumerate(contents):
+            title = content.title or "Untitled"
+            desc = content.description or "No description available"
+            # Truncate long descriptions
+            desc = desc[:200] + "..." if len(desc) > 200 else desc
+            summary_parts.append(f"{i+1}. **{title}**")
+            summary_parts.append(f"   {desc}")
+            if content.author:
+                summary_parts.append(f"   *By: {content.author}*")
+            summary_parts.append("")
+        
+        summary_parts.append("💡 *For full AI analysis, configure OpenAI API key in environment variables.*")
+        return "\n".join(summary_parts)
