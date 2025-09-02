@@ -40,9 +40,20 @@ class SummarizerService:
                 self.use_legacy_api = False
                 print(f"✅ OpenAI v1.3.8 client initialized successfully")
                 
-                # Skip testing and just return success - testing can fail due to network/auth
-                print(f"✅ OpenAI client initialized successfully (skipping test for reliability)")
-                return True
+                # Test with a simple API call to verify it's working
+                try:
+                    print(f"🧪 Testing OpenAI connection...")
+                    test_response = self.client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[{"role": "user", "content": "Hello"}],
+                        max_tokens=5
+                    )
+                    print(f"✅ OpenAI connection test successful!")
+                    return True
+                except Exception as test_error:
+                    print(f"❌ OpenAI connection test failed: {test_error}")
+                    print(f"🔧 Test error type: {type(test_error).__name__}")
+                    return False
                 
             except Exception as e:
                 print(f"❌ OpenAI client initialization failed: {e}")
@@ -61,17 +72,26 @@ class SummarizerService:
             
             # Try to use OpenAI, fallback to simple summary
             print(f"🔍 Attempting OpenAI initialization...")
-            if self._init_client():
+            init_success = self._init_client()
+            print(f"🔍 Client initialization result: {init_success}")
+            print(f"🔍 Client object: {self.client}")
+            
+            if init_success:
                 print(f"🤖 OpenAI client initialized successfully, generating AI summary...")
-                print(f"🔧 Using model: {self.model}, Legacy API: {self.use_legacy_api}")
-                summary_text = self._generate_ai_summary(contents, prompt)
-                print(f"📝 Summary generated: {len(summary_text)} characters")
+                print(f"🔧 Using model: {self.model}")
                 
-                # Check if we got a real AI response or fallback
-                if "OpenAI unavailable" not in summary_text:
-                    print(f"✅ REAL AI SUMMARY GENERATED!")
-                else:
-                    print(f"⚠️  Still got fallback despite initialization")
+                try:
+                    summary_text = self._generate_ai_summary(contents, prompt)
+                    print(f"📝 Summary generated: {len(summary_text)} characters")
+                    
+                    # Check if we got a real AI response or fallback
+                    if "OpenAI unavailable" not in summary_text:
+                        print(f"✅ REAL AI SUMMARY GENERATED!")
+                    else:
+                        print(f"⚠️  Still got fallback despite initialization")
+                except Exception as ai_error:
+                    print(f"❌ AI summary generation failed: {ai_error}")
+                    summary_text = self._generate_fallback_summary(contents, prompt)
             else:
                 print(f"❌ OpenAI client failed to initialize, using fallback...")
                 summary_text = self._generate_fallback_summary(contents, prompt)
@@ -117,8 +137,16 @@ class SummarizerService:
         try:
             content_text = "\n".join([f"{c.title}: {c.description}" for c in contents])
             
+            # Detailed debugging
+            print(f"🔍 DEBUG: Client exists: {self.client is not None}")
+            print(f"🔍 DEBUG: Model: {self.model}")
+            print(f"🔍 DEBUG: Content length: {len(content_text)}")
+            print(f"🔍 DEBUG: Max tokens: {self.max_tokens}")
+            
             # Use OpenAI v1.3.8 client API
             print(f"🔄 Using OpenAI v1.3.8 API call...")
+            print(f"🔄 Making request to model: {self.model}")
+            
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -127,7 +155,12 @@ class SummarizerService:
                 max_tokens=self.max_tokens
             )
             print(f"✅ OpenAI API call successful")
-            return response.choices[0].message.content.strip()
+            print(f"🔍 Response type: {type(response)}")
+            print(f"🔍 Response choices length: {len(response.choices)}")
+            
+            result = response.choices[0].message.content.strip()
+            print(f"🔍 Result length: {len(result)}")
+            return result
                 
         except Exception as e:
             print(f"🔧 OpenAI API call failed: {e}")
