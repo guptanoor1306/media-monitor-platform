@@ -72,8 +72,11 @@ class SummarizerService:
             
             # Try to use OpenAI, fallback to simple summary
             if self._init_client():
+                print(f"🤖 OpenAI client initialized successfully, generating AI summary...")
                 summary_text = self._generate_ai_summary(contents, prompt)
+                print(f"📝 Summary generated: {len(summary_text)} characters")
             else:
+                print(f"❌ OpenAI client failed to initialize, using fallback...")
                 summary_text = self._generate_fallback_summary(contents, prompt)
             
             # Create summary record
@@ -141,6 +144,8 @@ class SummarizerService:
                 
         except Exception as e:
             print(f"🔧 OpenAI API call failed: {e}")
+            print(f"🔧 Error type: {type(e).__name__}")
+            print(f"🔧 Use legacy API: {self.use_legacy_api}")
             return self._generate_fallback_summary(contents, prompt)
     
     def _generate_fallback_summary(self, contents: List[Content], prompt: str) -> str:

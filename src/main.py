@@ -37,6 +37,40 @@ templates = Jinja2Templates(directory="templates")
 @app.on_event("startup")
 async def startup_event():
     init_db()
+    
+    # Auto-populate data if database is empty (for production)
+    try:
+        from src.database import SessionLocal
+        from src.models import Source, Content
+        
+        db = SessionLocal()
+        source_count = db.query(Source).count()
+        content_count = db.query(Content).count()
+        
+        if source_count == 0 or content_count < 50:
+            print("🔄 Database appears empty, auto-populating...")
+            # Import and run the migration functions
+            from scripts.fixed_migration import fixed_migrate
+            from scripts.migrate_real_data import migrate_real_data
+            
+            try:
+                # Populate sources and initial content
+                print("📊 Loading sources and initial content...")
+                fixed_migrate()
+                
+                # Load all content
+                print("📰 Loading all 400 content items...")
+                migrate_real_data()
+                
+                print("✅ Database auto-population completed!")
+            except Exception as e:
+                print(f"⚠️  Auto-population failed: {e}")
+        else:
+            print(f"✅ Database has data: {source_count} sources, {content_count} content items")
+            
+        db.close()
+    except Exception as e:
+        print(f"⚠️  Startup database check failed: {e}")
 
 # Health check endpoint
 @app.get("/health")
