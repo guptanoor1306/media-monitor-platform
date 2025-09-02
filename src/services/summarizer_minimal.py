@@ -33,20 +33,13 @@ class SummarizerService:
                 
                 print(f"✅ Initializing OpenAI client with key: {settings.openai_api_key[:10]}...")
                 
-                # Initialize with minimal parameters to avoid version conflicts
-                try:
-                    self.client = OpenAI(api_key=settings.openai_api_key)
-                    self.use_legacy_api = False
-                    print(f"✅ New OpenAI client initialized successfully")
-                except TypeError as te:
-                    # Handle version-specific initialization issues
-                    print(f"⚠️  Trying alternative initialization due to: {te}")
-                    import openai
-                    openai.api_key = settings.openai_api_key
-                    self.client = openai
-                    self.use_legacy_api = True  # Flag that we're using legacy API
-                    print(f"✅ OpenAI client initialized with legacy method")
-                    return True
+                # Use legacy API style for v1.3.8 compatibility
+                print(f"🔄 Using OpenAI v1.3.8 legacy API...")
+                import openai
+                openai.api_key = settings.openai_api_key
+                self.client = openai
+                self.use_legacy_api = True
+                print(f"✅ OpenAI legacy client initialized successfully")
                 
                 # Skip testing and just return success - testing can fail due to network/auth
                 print(f"✅ OpenAI client initialized successfully (skipping test for reliability)")
@@ -129,7 +122,7 @@ class SummarizerService:
             if self.use_legacy_api:
                 print(f"🔄 Using legacy OpenAI API call...")
                 # Use legacy OpenAI API style (for v1.3.8)
-                response = self.client.ChatCompletion.create(
+                response = self.client.chat.completions.create(
                     model=self.model,
                     messages=[
                         {"role": "user", "content": f"{prompt}\n\nContent:\n{content_text}"}

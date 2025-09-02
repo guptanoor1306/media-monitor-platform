@@ -97,20 +97,11 @@ async def debug_openai():
     # Test OpenAI client initialization with the same logic as summarizer
     try:
         if settings.openai_api_key:
-            from openai import OpenAI
-            
-            # Try new style first
-            try:
-                client = OpenAI(api_key=settings.openai_api_key)
-                debug_info["client_style"] = "new"
-                debug_info["openai_test"] = "✅ New style success"
-            except TypeError as te:
-                # Try legacy style
-                debug_info["client_style"] = "legacy"
-                debug_info["type_error"] = str(te)
-                import openai
-                openai.api_key = settings.openai_api_key
-                debug_info["openai_test"] = "✅ Legacy style success"
+            # Use legacy API style for v1.3.8 compatibility
+            import openai
+            openai.api_key = settings.openai_api_key
+            debug_info["client_style"] = "legacy_v1.3.8"
+            debug_info["openai_test"] = "✅ Legacy v1.3.8 initialized"
         else:
             debug_info["openai_test"] = "❌ No API key"
     except Exception as e:
