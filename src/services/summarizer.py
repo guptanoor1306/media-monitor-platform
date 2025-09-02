@@ -35,7 +35,7 @@ class SummarizerService:
                 content_id=content_ids[0],  # Store reference to first content
                 prompt=prompt,
                 summary_text=summary_text,
-                model_used=self.model,
+                ai_model=self.model,
                 tokens_used=len(summary_text.split())  # Approximate token count
             )
             

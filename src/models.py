@@ -60,7 +60,7 @@ class Summary(Base):
     content_id = Column(Integer, ForeignKey("contents.id"))
     prompt = Column(Text, nullable=False)
     summary_text = Column(Text, nullable=False)
-    model_used = Column(String(100))
+    ai_model = Column(String(100))
     tokens_used = Column(Integer)
     created_at = Column(DateTime, default=datetime.utcnow)
     
@@ -197,7 +197,7 @@ class SummaryResponse(BaseModel):
     content_id: int
     prompt: str
     summary_text: str
-    model_used: Optional[str] = None
+    ai_model: Optional[str] = None
     tokens_used: Optional[int] = None
     created_at: Optional[datetime] = None
     
