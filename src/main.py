@@ -425,3 +425,18 @@ if __name__ == "__main__":
         port=settings.port,
         reload=settings.debug
     )
+
+@app.post("/admin/populate-db")
+async def populate_database_endpoint():
+    """Admin endpoint to populate database with sample data."""
+    try:
+        # Import here to avoid issues
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        
+        from scripts.populate_render_db import populate_database
+        result = populate_database()
+        return {"status": "success", "data": result}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
