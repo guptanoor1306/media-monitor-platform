@@ -15,7 +15,7 @@ from src.models import (
     SummaryResponse, AlertCreate, ScheduledTaskCreate
 )
 from src.services.content_aggregator_minimal import ContentAggregator
-from src.services.summarizer import SummarizerService
+from src.services.summarizer_minimal import SummarizerService
 from src.config import settings
 
 # Initialize FastAPI app
