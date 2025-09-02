@@ -13,62 +13,7 @@ class SummarizerService:
         self.max_tokens = 1500
     
     def _init_client(self):
-        """Initialize OpenAI client only when needed."""
-        if self.client is None:
-            try:
-                from openai import OpenAI
-                from src.config import settings
-                
-                # Check if API key is available
-                if not settings.openai_api_key:
-                    print("❌ OpenAI API key not found in environment variables")
-                    print("💡 Set OPENAI_API_KEY in your Render environment variables")
-                    return False
-                
-                if not settings.openai_api_key.startswith('sk-'):
-                    print(f"❌ Invalid OpenAI API key format: {settings.openai_api_key[:10]}...")
-                    print("💡 OpenAI API keys should start with 'sk-'")
-                    return False
-                
-                print(f"✅ Initializing OpenAI client with key: {settings.openai_api_key[:10]}...")
-                
-                # Use OpenAI v1.3.8 with minimal initialization to avoid parameter conflicts
-                print(f"🔄 Using OpenAI v1.3.8 client...")
-                try:
-                    from openai import OpenAI
-                    # Try with minimal parameters first
-                    self.client = OpenAI(api_key=settings.openai_api_key)
-                    print(f"✅ OpenAI v1.3.8 client initialized successfully")
-                except TypeError as init_error:
-                    # The issue is with initialization parameters, not API version
-                    # Try basic OpenAI client without extra parameters
-                    print(f"⚠️  Standard init failed: {init_error}, trying minimal init...")
-                    import os
-                    os.environ["OPENAI_API_KEY"] = settings.openai_api_key
-                    from openai import OpenAI
-                    self.client = OpenAI()  # Let it read from environment
-                    print(f"✅ OpenAI client initialized with minimal parameters")
-                
-                # Test with a simple API call to verify it's working
-                try:
-                    print(f"🧪 Testing OpenAI connection...")
-                    # Always use v1.x API (ChatCompletion was removed in v1.0+)
-                    test_response = self.client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=[{"role": "user", "content": "Hello"}],
-                        max_tokens=5
-                    )
-                    print(f"✅ OpenAI connection test successful!")
-                    return True
-                except Exception as test_error:
-                    print(f"❌ OpenAI connection test failed: {test_error}")
-                    print(f"🔧 Test error type: {type(test_error).__name__}")
-                    return False
-                
-            except Exception as e:
-                print(f"❌ OpenAI client initialization failed: {e}")
-                print(f"🔧 Error type: {type(e).__name__}")
-                return False
+        """This method is deprecated - using direct initialization now."""
         return True
     
     def summarize_content(self, content_ids: List[int], prompt: str, user_id: Optional[int] = None) -> Summary:
@@ -91,9 +36,15 @@ class SummarizerService:
             
             # Force initialization with maximum debugging
             try:
+                print(f"🔄 Setting up clean environment...")
+                import os
+                # Set the API key in environment to avoid parameter issues
+                os.environ["OPENAI_API_KEY"] = settings.openai_api_key
+                
                 from openai import OpenAI
-                print(f"🔄 Creating OpenAI client...")
-                self.client = OpenAI(api_key=settings.openai_api_key)
+                print(f"🔄 Creating OpenAI client with NO parameters...")
+                # Initialize with NO parameters to avoid 'proxies' argument error
+                self.client = OpenAI()
                 print(f"✅ Client created successfully")
                 
                 # FORCE a test call - no excuses
