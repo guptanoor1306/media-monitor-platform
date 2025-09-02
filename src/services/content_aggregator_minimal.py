@@ -30,3 +30,11 @@ class ContentAggregator:
             "message": "Update completed (scraping disabled for deployment)", 
             "results": {"minimal_mode": "Content loading from existing database"}
         }
+    
+    def update_all_sources(self) -> Dict[str, Any]:
+        """Minimal implementation for deployment - prevents Daily Refresh from breaking"""
+        return {
+            "message": "Daily refresh completed (live scraping not implemented yet)", 
+            "note": "Use migrate-all-content endpoint to load full dataset",
+            "current_mode": "static_content"
+        }
