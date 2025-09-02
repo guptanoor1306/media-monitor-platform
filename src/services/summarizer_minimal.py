@@ -9,8 +9,8 @@ class SummarizerService:
     def __init__(self):
         # Don't initialize OpenAI client at startup
         self.client = None
-        self.model = "gpt-3.5-turbo"
-        self.max_tokens = 1000
+        self.model = "gpt-4o-mini"  # Upgraded to GPT-4o-mini for better performance
+        self.max_tokens = 1500
         self.use_legacy_api = False  # Track which API style to use
     
     def _init_client(self):
@@ -37,6 +37,7 @@ class SummarizerService:
                 try:
                     self.client = OpenAI(api_key=settings.openai_api_key)
                     self.use_legacy_api = False
+                    print(f"✅ New OpenAI client initialized successfully")
                 except TypeError as te:
                     # Handle version-specific initialization issues
                     print(f"⚠️  Trying alternative initialization due to: {te}")
@@ -122,6 +123,7 @@ class SummarizerService:
             
             # Use the appropriate API style based on initialization
             if self.use_legacy_api:
+                print(f"🔄 Using legacy OpenAI API call...")
                 # Use legacy OpenAI API style (for v1.3.8)
                 response = self.client.ChatCompletion.create(
                     model=self.model,
@@ -130,8 +132,10 @@ class SummarizerService:
                     ],
                     max_tokens=self.max_tokens
                 )
+                print(f"✅ Legacy API call successful")
                 return response.choices[0].message.content.strip()
             else:
+                print(f"🔄 Using new OpenAI API call...")
                 # Use new OpenAI client style
                 response = self.client.chat.completions.create(
                     model=self.model,
@@ -140,6 +144,7 @@ class SummarizerService:
                     ],
                     max_tokens=self.max_tokens
                 )
+                print(f"✅ New API call successful")
                 return response.choices[0].message.content.strip()
                 
         except Exception as e:

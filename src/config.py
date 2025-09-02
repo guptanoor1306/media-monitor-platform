@@ -6,8 +6,19 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
     
-    # Database - supports both SQLite (local) and PostgreSQL (cloud)
+    # Database - supports both SQLite (local) and PostgreSQL (cloud)  
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///./media_monitor.db")
+    
+    # Force PostgreSQL for production persistence (Render provides this automatically)
+    @property
+    def effective_database_url(self):
+        """Get the effective database URL, preferring PostgreSQL for persistence."""
+        if self.database_url and self.database_url.startswith("postgres"):
+            print(f"✅ Using PostgreSQL for persistent storage")
+            return self.database_url
+        else:
+            print(f"⚠️  Using SQLite - data may not persist between deployments")
+            return self.database_url
     redis_url: str = "redis://localhost:6379"
     
     # OpenAI

@@ -2,9 +2,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from src.config import settings
 
-# Create database engine
+# Create database engine with persistence check
 engine = create_engine(
-    settings.database_url,
+    settings.effective_database_url,
     pool_pre_ping=True,
     pool_recycle=300,
 )
