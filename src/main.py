@@ -486,3 +486,15 @@ async def populate_data():
     except Exception as e:
         return {"error": str(e)}
 
+
+
+@app.get("/migrate-real-data")
+async def migrate_real_data_endpoint():
+    """Replace sample data with real 401 content items"""
+    try:
+        from scripts.migrate_real_data import migrate_real_data
+        result = migrate_real_data()
+        return {"status": "success", "data": result}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
