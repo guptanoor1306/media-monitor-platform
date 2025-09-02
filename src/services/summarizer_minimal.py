@@ -34,36 +34,47 @@ class SummarizerService:
             print(f"🔑 API Key format: {settings.openai_api_key[:15]}..." if settings.openai_api_key else "None")
             print(f"🔑 API Key length: {len(settings.openai_api_key) if settings.openai_api_key else 0}")
             
-            # Force initialization with maximum debugging
+            # BYPASS OpenAI client entirely - use direct HTTP API
             try:
-                print(f"🔄 Setting up clean environment...")
-                import os
-                # Set the API key in environment to avoid parameter issues
-                os.environ["OPENAI_API_KEY"] = settings.openai_api_key
+                print(f"🔄 BYPASSING OpenAI client - using direct HTTP API...")
+                import requests
+                import json
                 
-                from openai import OpenAI
-                print(f"🔄 Creating OpenAI client with NO parameters...")
-                # Initialize with NO parameters to avoid 'proxies' argument error
-                self.client = OpenAI()
-                print(f"✅ Client created successfully")
+                # Direct API call to OpenAI
+                content_text = "\n".join([f"{c.title}: {c.description}" for c in contents])
                 
-                # FORCE a test call - no excuses
-                print(f"🧪 FORCING test API call...")
-                test_response = self.client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "user", "content": "Test"}],
-                    max_tokens=10
+                headers = {
+                    "Authorization": f"Bearer {settings.openai_api_key}",
+                    "Content-Type": "application/json"
+                }
+                
+                data = {
+                    "model": "gpt-4o-mini",
+                    "messages": [
+                        {"role": "user", "content": f"{prompt}\n\nContent:\n{content_text}"}
+                    ],
+                    "max_tokens": 1500
+                }
+                
+                print(f"🔄 Making direct HTTP request to OpenAI API...")
+                response = requests.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers=headers,
+                    json=data,
+                    timeout=30
                 )
-                print(f"✅ TEST API CALL SUCCESSFUL!")
-                print(f"🔍 Test response: {test_response.choices[0].message.content}")
                 
-                # Now do the real summary
-                print(f"🔄 Generating REAL AI summary...")
-                summary_text = self._generate_ai_summary(contents, prompt)
-                print(f"✅ AI SUMMARY COMPLETE: {len(summary_text)} chars")
+                if response.status_code == 200:
+                    result = response.json()
+                    summary_text = result["choices"][0]["message"]["content"].strip()
+                    print(f"✅ DIRECT API CALL SUCCESSFUL!")
+                    print(f"✅ AI SUMMARY COMPLETE: {len(summary_text)} chars")
+                else:
+                    print(f"💥 API call failed with status {response.status_code}: {response.text}")
+                    summary_text = self._generate_fallback_summary(contents, prompt)
                 
             except Exception as force_error:
-                print(f"💥 FORCED TEST FAILED: {force_error}")
+                print(f"💥 DIRECT API FAILED: {force_error}")
                 print(f"💥 Error type: {type(force_error).__name__}")
                 print(f"💥 Full error: {str(force_error)}")
                 # Only NOW use fallback
