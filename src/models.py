@@ -3,7 +3,8 @@ from typing import Optional, List
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, JSON, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
+import json
 
 # Create Base for SQLAlchemy models
 Base = declarative_base()
@@ -186,6 +187,20 @@ class ContentResponse(BaseModel):
         # Allow extra fields from the database
         extra = "ignore"
 
+
+
+    @validator('tags', pre=True)
+    def parse_tags(cls, v):
+        if v is None:
+            return []
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except:
+                return []
+        if isinstance(v, list):
+            return v
+        return []
 
 class SummaryRequest(BaseModel):
     content_ids: List[int]
