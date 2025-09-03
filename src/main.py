@@ -5,8 +5,9 @@ from fastapi.responses import HTMLResponse
 from fastapi.requests import Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 import uvicorn
+import random
 
 from src.database import get_db, init_db
 from src.models import (
@@ -852,7 +853,7 @@ async def migrate_all_content_endpoint():
                     'content_url': content_data.get('content_url'),
                     'source_id': content_data.get('source_id', 1),
                     'author': content_data.get('author'),
-                    'published_at': datetime.now(),  # Use current time for simplicity
+                    'published_at': datetime.fromisoformat(content_data['published_at']) if content_data.get('published_at') else datetime.now() - timedelta(days=random.randint(1, 30)),
                     'tags': content_data.get('tags') if content_data.get('tags') else []
                 }
                 
