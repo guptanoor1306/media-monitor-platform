@@ -570,6 +570,9 @@ async def update_content():
         
         # Lightweight real scraping: just scrape 1-2 sources with few items to avoid timeout
         import random
+        import feedparser
+        import requests
+        from datetime import timezone
         
         db = SessionLocal()
         new_items_added = 0
@@ -578,23 +581,28 @@ async def update_content():
             sources = db.query(Source).filter(Source.is_active == True).limit(2).all()
             
             if sources:
-                from src.scraper_service import ScraperService
-                scraper = ScraperService()
-                
                 for source in sources:
                     try:
                         print(f"🔍 Light scraping: {source.name}")
                         
                         # Get RSS feed with minimal processing
-                        import feedparser
-                        import requests
-                        
                         response = requests.get(source.rss_url, timeout=10)
+                        if response.status_code != 200:
+                            print(f"  ❌ HTTP {response.status_code} for {source.name}")
+                            continue
+                            
                         feed = feedparser.parse(response.content)
+                        
+                        if not feed.entries:
+                            print(f"  ⚠️ No entries found for {source.name}")
+                            continue
                         
                         # Process only first 3 entries to avoid timeout
                         for entry in feed.entries[:3]:
-                            title = entry.get('title', 'No Title')
+                            title = entry.get('title', 'No Title').strip()
+                            
+                            if not title or title == 'No Title':
+                                continue
                             
                             # Check for duplicates
                             existing = db.query(Content).filter(
@@ -603,28 +611,34 @@ async def update_content():
                             ).first()
                             
                             if existing:
+                                print(f"  ⚠️ Duplicate skipped: {title[:30]}...")
                                 continue
                             
                             # Extract publication date properly
                             published_at = None
                             if hasattr(entry, 'published_parsed') and entry.published_parsed:
-                                from datetime import timezone
-                                published_at = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
+                                try:
+                                    published_at = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
+                                except:
+                                    pass
                             elif hasattr(entry, 'updated_parsed') and entry.updated_parsed:
-                                from datetime import timezone
-                                published_at = datetime(*entry.updated_parsed[:6], tzinfo=timezone.utc)
-                            else:
+                                try:
+                                    published_at = datetime(*entry.updated_parsed[:6], tzinfo=timezone.utc)
+                                except:
+                                    pass
+                            
+                            if not published_at:
                                 # Use random recent date instead of current time
                                 published_at = datetime.now() - timedelta(days=random.randint(1, 7))
                             
                             # Create content with proper date
                             content = Content(
                                 title=title,
-                                description=entry.get('summary', '')[:500],
+                                description=(entry.get('summary', '') or entry.get('description', ''))[:500],
                                 content_url=entry.get('link', ''),
                                 source_id=source.id,
                                 published_at=published_at,
-                                author=entry.get('author', source.name)
+                                author=entry.get('author') or source.name
                             )
                             
                             db.add(content)
@@ -642,7 +656,11 @@ async def update_content():
                         print(f"  ❌ Failed to scrape {source.name}: {e}")
                         continue
             
-            db.commit()
+            if new_items_added > 0:
+                db.commit()
+                print(f"✅ Successfully added {new_items_added} new articles")
+            else:
+                print("ℹ️ No new content found - all articles were duplicates")
             
         except Exception as e:
             print(f"❌ Light scraping failed: {e}")
