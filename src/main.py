@@ -496,15 +496,59 @@ async def get_content_item(content_id: int, db: Session = Depends(get_db)):
 async def update_content():
     """Trigger content update from all sources (daily refresh)."""
     try:
-        from src.daily_scraper import run_daily_scrape_sync
         print("🔄 Starting daily content refresh...")
         
-        stats = run_daily_scrape_sync()
-        print(f"✅ Daily refresh complete: {stats}")
+        # Get current content count before scraping
+        db = SessionLocal()
+        content_before = db.query(Content).count()
+        sources_before = db.query(Source).count()
+        db.close()
+        
+        # Run the premium scraper directly
+        from src.premium_scraper import run_premium_scrape
+        results = await run_premium_scrape()
+        total_new_items = sum(results.values())
+        
+        # Get counts after scraping
+        db = SessionLocal()
+        content_after = db.query(Content).count()
+        sources_after = db.query(Source).count()
+        db.close()
+        
+        # Calculate actual additions
+        actual_new_content = content_after - content_before
+        actual_new_sources = sources_after - sources_before
+        
+        stats = {
+            "scrape_time": datetime.now().isoformat(),
+            "content_before": content_before,
+            "content_after": content_after,
+            "new_content_added": actual_new_content,
+            "sources_before": sources_before,
+            "sources_after": sources_after,
+            "new_sources_added": actual_new_sources,
+            "successful_sources": {name: count for name, count in results.items() if count > 0},
+            "total_scraped_items": total_new_items,
+            "status": "success"
+        }
+        
+        if actual_new_content > 0:
+            print(f"✅ Daily scrape successful: {actual_new_content} new articles added")
+            print(f"📊 Total content: {content_after} (+{actual_new_content})")
+            successful = [(name, count) for name, count in results.items() if count > 0]
+            for name, count in successful:
+                print(f"  📰 {name}: {count} items")
+        else:
+            print("ℹ️ No new content found in this scraping cycle")
+            stats["status"] = "no_new_content"
         
         return {"message": "Content update completed", "stats": stats}
+        
     except Exception as e:
         print(f"💥 Daily refresh failed: {e}")
+        print(f"💥 Error type: {type(e).__name__}")
+        import traceback
+        print(f"💥 Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Content update failed: {str(e)}")
 
 @app.post("/api/content/update/{source_id}")
@@ -516,10 +560,8 @@ async def update_source_content(source_id: int, db: Session = Depends(get_db)):
     
     try:
         print(f"🔄 Updating content from source: {source.name}")
-        # For now, just run the full daily scrape
-        from src.daily_scraper import run_daily_scrape_sync
-        stats = run_daily_scrape_sync()
-        return {"message": f"Updated content from {source.name}", "stats": stats}
+        # For individual sources, just return a simple message for now
+        return {"message": f"Source update requested for {source.name}", "note": "Individual source updates coming soon - use full daily refresh for now"}
     except Exception as e:
         print(f"💥 Source update failed: {e}")
         raise HTTPException(status_code=500, detail=f"Source update failed: {str(e)}")
