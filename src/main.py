@@ -577,16 +577,28 @@ async def update_content():
         db = SessionLocal()
         new_items_added = 0
         try:
-            # Get a couple of sources to scrape lightly
-            sources = db.query(Source).filter(Source.is_active == True).limit(2).all()
+            # Get a couple of sources to scrape lightly (prefer sources with RSS feeds)
+            sources = db.query(Source).filter(
+                Source.is_active == True,
+                Source.url.like('%rss%') | Source.url.like('%feed%') | Source.url.like('%xml%')
+            ).limit(2).all()
+            
+            # If no RSS feeds found, try any active sources
+            if not sources:
+                sources = db.query(Source).filter(Source.is_active == True).limit(2).all()
             
             if sources:
                 for source in sources:
                     try:
                         print(f"🔍 Light scraping: {source.name}")
+                        print(f"  📡 URL: {source.url}")
+                        
+                        # Check if URL looks like an RSS feed
+                        if not any(indicator in source.url.lower() for indicator in ['rss', 'feed', 'xml', 'atom']):
+                            print(f"  ⚠️ URL doesn't look like RSS feed, trying anyway...")
                         
                         # Get RSS feed with minimal processing
-                        response = requests.get(source.rss_url, timeout=10)
+                        response = requests.get(source.url, timeout=10)
                         if response.status_code != 200:
                             print(f"  ❌ HTTP {response.status_code} for {source.name}")
                             continue
