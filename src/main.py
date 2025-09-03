@@ -255,6 +255,30 @@ async def debug_podcast_data():
     except Exception as e:
         return {"error": str(e)}
 
+@app.get("/api/test")
+async def test_api():
+    """Simple test endpoint to verify API is working."""
+    return {"status": "ok", "message": "API is working!", "timestamp": datetime.now().isoformat()}
+
+@app.get("/api/debug/content-count")
+async def debug_content_count(db: Session = Depends(get_db)):
+    """Debug endpoint to check content count and sample data."""
+    try:
+        total_count = db.query(Content).count()
+        source_count = db.query(Source).count()
+        
+        # Get a few sample items
+        sample_content = db.query(Content).order_by(Content.published_at.desc()).limit(3).all()
+        
+        return {
+            "total_content": total_count,
+            "total_sources": source_count,
+            "sample_titles": [c.title for c in sample_content],
+            "sample_published_dates": [c.published_at.isoformat() if c.published_at else None for c in sample_content]
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.get("/debug/openai")
 async def debug_openai():
     """Debug endpoint to check OpenAI configuration."""
@@ -371,14 +395,23 @@ async def get_content(
     db: Session = Depends(get_db)
 ):
     """Get content with optional filtering and pagination."""
-    query = db.query(Content)
-    if source_id:
-        query = query.filter(Content.source_id == source_id)
-    
-    query = query.order_by(Content.published_at.desc())
-    query = query.offset(offset).limit(limit)
-    
-    return query.all()
+    try:
+        print(f"🔍 API /api/content called with limit={limit}, offset={offset}, source_id={source_id}")
+        
+        query = db.query(Content)
+        if source_id:
+            query = query.filter(Content.source_id == source_id)
+        
+        query = query.order_by(Content.published_at.desc())
+        query = query.offset(offset).limit(limit)
+        
+        content = query.all()
+        print(f"📊 Returning {len(content)} content items")
+        
+        return content
+    except Exception as e:
+        print(f"💥 Error in /api/content: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/content/creator", response_model=List[ContentResponse])
 async def get_creator_content(
