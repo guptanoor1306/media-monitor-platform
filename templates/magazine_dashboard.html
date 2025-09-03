@@ -267,6 +267,8 @@
                 allSources = await sourcesResponse.json();
                 
                 console.log(`📰 Loaded ${allContent.length} magazine stories from ${allSources.length} sources`);
+                console.log('📊 Sample content:', allContent.slice(0, 2));
+                console.log('📊 Sample sources:', allSources.slice(0, 2));
                 
                 // Update counts
                 updateBucketCounts();
@@ -349,9 +351,14 @@
                         .filter(source => source.source_type === bucket)
                         .map(source => source.id);
                     
+                    console.log(`🔍 Bucket '${bucket}' has source IDs:`, bucketSourceIds);
+                    console.log(`🔍 Content source IDs sample:`, content.slice(0, 5).map(c => c.source_id));
+                    
                     content = content.filter(item => 
                         bucketSourceIds.includes(item.source_id)
                     );
+                    
+                    console.log(`🔍 After bucket filter: ${content.length} items`);
                 }
                 
                 // Then apply source filters if any are selected
@@ -377,7 +384,9 @@
             const grid = document.getElementById('magazineGrid');
             const loadMoreBtn = document.getElementById('loadMoreBtn');
             
+            console.log(`🔍 Rendering ${filteredContent.length} items`);
             if (filteredContent.length === 0) {
+                console.log('❌ No content to display - showing empty state');
                 showEmpty();
                 return;
             }
