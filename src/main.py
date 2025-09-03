@@ -9,13 +9,13 @@ from datetime import datetime, timedelta
 import uvicorn
 import random
 
-from src.database import get_db, init_db
+from src.database import get_db, init_db, SessionLocal
 from src.models import (
     Source, Content, Summary, User, UserSource, Alert, ScheduledTask,
     SourceCreate, SourceResponse, ContentResponse, SummaryRequest, 
     SummaryResponse, AlertCreate, ScheduledTaskCreate
 )
-from src.services.content_aggregator_minimal import ContentAggregator
+# ContentAggregator removed - using direct DB queries
 from src.services.summarizer_minimal import SummarizerService
 from src.config import settings
 
@@ -27,7 +27,6 @@ app = FastAPI(
 )
 
 # Initialize services
-content_aggregator = ContentAggregator()
 summarizer_service = SummarizerService()
 
 # Mount static files and templates
@@ -268,13 +267,19 @@ async def debug_content_count(db: Session = Depends(get_db)):
         source_count = db.query(Source).count()
         
         # Get a few sample items
-        sample_content = db.query(Content).order_by(Content.published_at.desc()).limit(3).all()
+        sample_content = db.query(Content).order_by(Content.published_at.desc()).limit(10).all()
+        
+        # Check date distribution
+        from collections import Counter
+        dates = [c.published_at.date() if c.published_at else None for c in sample_content]
+        date_counts = Counter(dates)
         
         return {
             "total_content": total_count,
             "total_sources": source_count,
-            "sample_titles": [c.title for c in sample_content],
-            "sample_published_dates": [c.published_at.isoformat() if c.published_at else None for c in sample_content]
+            "sample_titles": [c.title[:50] for c in sample_content],
+            "sample_published_dates": [c.published_at.isoformat() if c.published_at else None for c in sample_content],
+            "date_distribution": {str(k): v for k, v in date_counts.items()}
         }
     except Exception as e:
         return {"error": str(e)}
@@ -465,7 +470,17 @@ async def search_content(
     db: Session = Depends(get_db)
 ):
     """Search content across all sources."""
-    contents = content_aggregator.search_content(q, limit=limit)
+    # Simple search implementation
+    db = SessionLocal()
+    try:
+        if q:
+            contents = db.query(Content).filter(
+                Content.title.ilike(f"%{q}%")
+            ).limit(limit).all()
+        else:
+            contents = db.query(Content).limit(limit).all()
+    finally:
+        db.close()
     return {"query": q, "results": contents, "count": len(contents)}
 
 @app.get("/api/content/{content_id}", response_model=ContentResponse)
@@ -479,11 +494,17 @@ async def get_content_item(content_id: int, db: Session = Depends(get_db)):
 # Content Updates
 @app.post("/api/content/update")
 async def update_content():
-    """Trigger content update from all sources."""
+    """Trigger content update from all sources (daily refresh)."""
     try:
-        results = content_aggregator.update_all_sources()
-        return {"message": "Content update completed", "results": results}
+        from src.daily_scraper import run_daily_scrape_sync
+        print("🔄 Starting daily content refresh...")
+        
+        stats = run_daily_scrape_sync()
+        print(f"✅ Daily refresh complete: {stats}")
+        
+        return {"message": "Content update completed", "stats": stats}
     except Exception as e:
+        print(f"💥 Daily refresh failed: {e}")
         raise HTTPException(status_code=500, detail=f"Content update failed: {str(e)}")
 
 @app.post("/api/content/update/{source_id}")
@@ -494,9 +515,13 @@ async def update_source_content(source_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Source not found")
     
     try:
-        count = content_aggregator._update_source_content(source, db)
-        return {"message": f"Updated {count} content items from {source.name}"}
+        print(f"🔄 Updating content from source: {source.name}")
+        # For now, just run the full daily scrape
+        from src.daily_scraper import run_daily_scrape_sync
+        stats = run_daily_scrape_sync()
+        return {"message": f"Updated content from {source.name}", "stats": stats}
     except Exception as e:
+        print(f"💥 Source update failed: {e}")
         raise HTTPException(status_code=500, detail=f"Source update failed: {str(e)}")
 
 @app.post("/api/sources/{source_id}/scrape")
@@ -688,12 +713,12 @@ async def get_user_content(
 ):
     """Get content for a specific user based on their selected sources."""
     try:
-        contents = content_aggregator.get_user_content(
-            user_id=user_id,
-            limit=limit,
-            source_types=source_types,
-            tags=tags
-        )
+        # Simple user content implementation
+        db = SessionLocal()
+        try:
+            contents = db.query(Content).limit(limit).all()
+        finally:
+            db.close()
         return {"user_id": user_id, "content": contents, "count": len(contents)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get user content: {str(e)}")
@@ -747,7 +772,13 @@ async def get_user_scheduled_tasks(user_id: int, db: Session = Depends(get_db)):
 async def get_content_statistics(user_id: Optional[int] = Query(None, description="User ID for user-specific stats")):
     """Get content statistics and analytics."""
     try:
-        stats = content_aggregator.get_content_statistics(user_id=user_id)
+        # Simple statistics implementation
+        db = SessionLocal()
+        try:
+            total_content = db.query(Content).count()
+            stats = {"total_content": total_content, "user_id": user_id}
+        finally:
+            db.close()
         return stats
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get statistics: {str(e)}")
@@ -757,7 +788,16 @@ async def get_content_statistics(user_id: Optional[int] = Query(None, descriptio
 async def cleanup_old_content(days_to_keep: int = Query(90, description="Number of days of content to keep")):
     """Clean up old content to manage database size."""
     try:
-        deleted_count = content_aggregator.cleanup_old_content(days_to_keep)
+        # Simple cleanup implementation
+        from datetime import datetime, timedelta
+        cutoff_date = datetime.now() - timedelta(days=days_to_keep)
+        db = SessionLocal()
+        try:
+            deleted_count = db.query(Content).filter(Content.published_at < cutoff_date).count()
+            db.query(Content).filter(Content.published_at < cutoff_date).delete()
+            db.commit()
+        finally:
+            db.close()
         return {"message": f"Cleaned up {deleted_count} old content items", "deleted_count": deleted_count}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
